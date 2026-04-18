@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Llama Launcher - WebUI</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-dark: #0d1117;
+            --bg-card: #161b22;
+            --bg-hover: #21262d;
+            --border: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent-cyan: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-red: #f85149;
+            --accent-orange: #d29922;
+            --accent-purple: #a371f7;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--accent-cyan);
+        }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.offline {
+            background: var(--accent-red);
+            animation: none;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+        
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .model-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .model-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .model-item:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent-cyan);
+        }
+        
+        .model-item.selected {
+            border-color: var(--accent-cyan);
+            background: rgba(88, 166, 255, 0.1);
+        }
+        
+        .model-name {
+            font-weight: 500;
+            word-break: break-all;
+        }
+        
+        .model-size {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            white-space: nowrap;
+            margin-left: 12px;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        
+        select, input {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: var(--accent-cyan);
+            color: #000;
+        }
+        
+        .btn-primary:hover {
+            background: #79b8ff;
+        }
+        
+        .btn-danger {
+            background: var(--accent-red);
+            color: #fff;
+        }
+        
+        .btn-danger:hover {
+            background: #ff6a5f;
+        }
+        
+        .btn-secondary {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        
+        .stat-item {
+            background: var(--bg-dark);
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent-cyan);
+        }
+        
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+        
+        .status-running {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            background: rgba(63, 185, 80, 0.1);
+            border: 1px solid var(--accent-green);
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .status-idle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            background: rgba(139, 148, 158, 0.1);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        
+        .refresh-btn {
+            float: right;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        
+        .refresh-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-dark);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--accent-cyan);
+            transition: width 0.3s ease;
+        }
+        
+        .progress-fill.warning {
+            background: var(--accent-orange);
+        }
+        
+        .progress-fill.danger {
+            background: var(--accent-red);
+        }
+        
+        .ctx-display {
+            margin-top: 16px;
+            padding: 12px;
+            background: var(--bg-dark);
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="container">
+        <header>
+            <h1>🤖 Llama Launcher</h1>
+            <div class="status-badge">
+                <span class="status-dot" :class="{ offline: !tuiOnline }"></span>
+                <span>TUI {{ tuiOnline ? 'Online' : 'Offline' }}</span>
+            </div>
+        </header>
+        
+        <div class="grid">
+            <!-- Model Selection -->
+            <div class="card">
+                <div class="card-title">
+                    Models 
+                    <button class="refresh-btn" @click="refreshModels">⟳ Refresh</button>
+                </div>
+                <div class="model-list" v-if="models.length > 0">
+                    <div 
+                        class="model-item" 
+                        v-for="model in models" 
+                        :key="model.name"
+                        :class="{ selected: selectedModel === model.name }"
+                        @click="selectModel(model.name)"
+                    >
+                        <span class="model-name">{{ model.name }}</span>
+                        <span class="model-size">{{ model.size_formatted }}</span>
+                    </div>
+                </div>
+                <div class="empty-state" v-else>
+                    <p>No models found</p>
+                    <button class="btn btn-secondary" @click="refreshModels" style="margin-top: 12px;">Scan Models</button>
+                </div>
+            </div>
+            
+            <!-- Configuration -->
+            <div class="card">
+                <div class="card-title">Configuration</div>
+                
+                <div class="form-group">
+                    <label>Running Mode</label>
+                    <select v-model="config.mode" :disabled="isRunning">
+                        <option value="0">CLI - Interactive</option>
+                        <option value="1">Server - API Server</option>
+                        <option value="2">Embedding - Vector Mode</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Context Size</label>
+                    <select v-model="config.ctxIdx" :disabled="isRunning">
+                        <option v-for="opt in ctxOptions" :key="opt.idx" :value="opt.idx">
+                            {{ opt.label }}
+                        </option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>GPU Layers (NGL)</label>
+                    <select v-model="config.nglIdx" :disabled="isRunning">
+                        <option v-for="opt in nglOptions" :key="opt.idx" :value="opt.idx">
+                            {{ opt.value }}
+                        </option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Port (Server mode)</label>
+                    <input type="number" v-model="config.port" min="1" max="65535" :disabled="isRunning">
+                </div>
+                
+                <div class="btn-group">
+                    <button class="btn btn-primary" @click="startModel" :disabled="isRunning || !selectedModel">
+                        ▶ Start
+                    </button>
+                    <button class="btn btn-danger" @click="stopModel" :disabled="!isRunning">
+                        ■ Stop
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Server Status -->
+        <div class="card" style="margin-top: 20px;">
+            <div class="card-title">Server Status</div>
+            
+            <div class="status-running" v-if="isRunning">
+                <span class="status-dot"></span>
+                <span>
+                    <strong>{{ currentModel }}</strong> running on port {{ config.port }} (PID: {{ processPid }})
+                </span>
+            </div>
+            
+            <div class="status-idle" v-else>
+                <span>●</span>
+                <span>No model running</span>
+            </div>
+            
+            <div class="stats-grid" v-if="isRunning">
+                <div class="stat-item">
+                    <div class="stat-value">{{ stats.prompt_tokens }}</div>
+                    <div class="stat-label">Prompt Tokens</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ stats.eval_tokens }}</div>
+                    <div class="stat-label">Eval Tokens</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ stats.prompt_per_second?.toFixed(1) || 0 }}</div>
+                    <div class="stat-label">Prompt tok/s</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ stats.eval_per_second?.toFixed(1) || 0 }}</div>
+                    <div class="stat-label">Eval tok/s</div>
+                </div>
+            </div>
+            
+            <div class="ctx-display" v-if="isRunning && stats.ctx_total > 0">
+                <label>Context: {{ stats.ctx_used }} / {{ stats.ctx_total }} ({{ ctxPercent }}%)</label>
+                <div class="progress-bar">
+                    <div class="progress-fill" :class="ctxProgressClass" :style="{ width: ctxPercent + '%' }"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
+        
+        createApp({
+            setup() {
+                // State
+                const models = ref([]);
+                const selectedModel = ref('');
+                const isRunning = ref(false);
+                const processPid = ref(null);
+                const currentModel = ref('');
+                const tuiOnline = ref(true);
+                
+                const config = ref({
+                    mode: 1,
+                    ctxIdx: 0,
+                    nglIdx: 4,
+                    port: 80
+                });
+                
+                const stats = ref({
+                    prompt_tokens: 0,
+                    eval_tokens: 0,
+                    prompt_per_second: 0,
+                    eval_per_second: 0,
+                    ctx_used: 0,
+                    ctx_total: 0,
+                    total_time: 0
+                });
+                
+                const ctxOptions = ref([
+                    { idx: 0, label: '4k', value: 4096 },
+                    { idx: 1, label: '8k', value: 8192 },
+                    { idx: 2, label: '16k', value: 16384 },
+                    { idx: 3, label: '32k', value: 32768 },
+                    { idx: 4, label: '64k', value: 65536 },
+                    { idx: 5, label: '128k', value: 131072 }
+                ]);
+                
+                const nglOptions = ref([
+                    { idx: 0, value: 0 },
+                    { idx: 1, value: 33 },
+                    { idx: 2, value: 66 },
+                    { idx: 3, value: 99 },
+                    { idx: 4, value: 999 }
+                ]);
+                
+                let pollInterval = null;
+                
+                // Computed
+                const ctxPercent = computed(() => {
+                    if (stats.value.ctx_total === 0) return 0;
+                    return Math.round((stats.value.ctx_used / stats.value.ctx_total) * 100);
+                });
+                
+                const ctxProgressClass = computed(() => {
+                    const p = ctxPercent.value;
+                    if (p >= 85) return 'danger';
+                    if (p >= 60) return 'warning';
+                    return '';
+                });
+                
+                // Methods
+                const refreshModels = async () => {
+                    try {
+                        const res = await fetch('/api/models');
+                        const data = await res.json();
+                        models.value = data.models || [];
+                    } catch (e) {
+                        console.error('Failed to fetch models:', e);
+                    }
+                };
+                
+                const fetchState = async () => {
+                    try {
+                        const res = await fetch('/api/state');
+                        const data = await res.json();
+                        
+                        isRunning.value = data.is_running;
+                        processPid.value = data.process_pid;
+                        currentModel.value = data.current_model_name || '';
+                        tuiOnline.value = data.webui_online;
+                        
+                        config.value.port = data.port;
+                        config.value.ctxIdx = data.ctx_idx !== undefined ? data.ctx_idx : 0;
+                        config.value.nglIdx = data.ngl_idx !== undefined ? data.ngl_idx : 4;
+                        config.value.mode = data.current_mode !== undefined ? data.current_mode : 1;
+                        
+                        if (data.server_stats) {
+                            stats.value = data.server_stats;
+                        }
+                        
+                        if (data.models && data.models.length > 0) {
+                            models.value = data.models;
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch state:', e);
+                    }
+                };
+                
+                const selectModel = (name) => {
+                    selectedModel.value = name;
+                };
+                
+                const startModel = async () => {
+                    if (!selectedModel.value) return;
+                    
+                    try {
+                        const res = await fetch('/api/start', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                model_name: selectedModel.value,
+                                mode: parseInt(config.value.mode)
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            await fetchState();
+                        }
+                    } catch (e) {
+                        console.error('Failed to start model:', e);
+                    }
+                };
+                
+                const stopModel = async () => {
+                    try {
+                        const res = await fetch('/api/stop', { method: 'POST' });
+                        const data = await res.json();
+                        if (data.success) {
+                            await fetchState();
+                        }
+                    } catch (e) {
+                        console.error('Failed to stop model:', e);
+                    }
+                };
+                
+                const saveConfig = async () => {
+                    try {
+                        await fetch('/api/config', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                ctx_idx: config.value.ctxIdx,
+                                ngl_idx: config.value.nglIdx,
+                                port: config.value.port
+                            })
+                        });
+                    } catch (e) {
+                        console.error('Failed to save config:', e);
+                    }
+                };
+                
+                // Watch config changes
+                const debounceTimer = ref(null);
+                const watchConfig = () => {
+                    if (debounceTimer.value) clearTimeout(debounceTimer.value);
+                    debounceTimer.value = setTimeout(() => {
+                        saveConfig();
+                    }, 500);
+                };
+                
+                // Lifecycle
+                onMounted(async () => {
+                    await fetchState();
+                    pollInterval = setInterval(fetchState, 1000);
+                });
+                
+                onUnmounted(() => {
+                    if (pollInterval) clearInterval(pollInterval);
+                });
+                
+                return {
+                    models,
+                    selectedModel,
+                    isRunning,
+                    processPid,
+                    currentModel,
+                    tuiOnline,
+                    config,
+                    stats,
+                    ctxOptions,
+                    nglOptions,
+                    ctxPercent,
+                    ctxProgressClass,
+                    refreshModels,
+                    selectModel,
+                    startModel,
+                    stopModel
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

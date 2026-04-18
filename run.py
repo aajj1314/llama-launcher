@@ -23,7 +23,7 @@ from state_manager import (
 )
 
 # Get singleton state manager
-state_mgr = get_state_Manager()
+state_mgr = get_state_manager()
 
 # Use shared constants from state_manager
 MODELS_PATH = os.path.join(LLAMA_CPP_PATH, "models")

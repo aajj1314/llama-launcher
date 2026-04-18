@@ -247,9 +247,6 @@ def main():
     selected_idx = 0
     last_update_time = 0
     
-    # Register TUI as online with state manager
-    state_mgr.set_webui_status(True)
-    
     # Sync initial state from state manager
     models = scan_large_models()
     state = state_mgr.state
@@ -258,18 +255,18 @@ def main():
     ngl_idx = state.ngl_idx
     port = state.port
     
-    # Sync models to state manager
+    # Sync models to state manager (only once at start)
     all_models = scan_models(MODELS_PATH)
     state_mgr.set_models(all_models)
     
     print_header()
-    print(f"  {C_green}✓ Initializing Llama. cpp Launcher v3.1 (Cyberpunk Edition)...{C_RESET}")
+    print(f"  {C_green}✓ Initializing Llama.cpp Launcher v3.1 (Cyberpunk Edition)...{C_RESET}")
     print(f"  {C_green}✓ Found {len(models)} large models{C_RESET}")
     print(f"  {C_green}✓ State Manager connected{C_RESET}")
     time.sleep(0.5)
 
     while running:
-        # Sync with state manager
+        # Get state from state manager
         state = state_mgr.state
         
         # Get process state from state manager
@@ -280,25 +277,29 @@ def main():
         ngl_idx = state.ngl_idx
         port = state.port
         
-        # Update stats from state manager for server mode
+        # Get server stats from state manager
         server_stats = state.server_stats
         
+        # Update stats from log file for server mode
         current_time = time.time()
         if current_process and current_process.poll() is None and current_log_file:
             if current_time - last_update_time > 0.5:
-                server_stats = parse_server_log(current_log_file)
+                parsed_stats = parse_server_log(current_log_file)
+                if parsed_stats.is_valid():
+                    server_stats = parsed_stats
+                    state_mgr.update_stats(server_stats)
                 last_update_time = current_time
-                # Update stats in state manager
-                state_mgr.update_stats(server_stats)
         
-        # Re-scan models for display
-        all_models = scan_models(MODELS_PATH)
-        state_mgr.set_models(all_models)
-        models = [m for m in all_models if m.get("size", 0) > LARGE_MODEL_THRESHOLD]
+        # Re-scan models only if list is empty (avoid repeated scanning)
+        if not state.models:
+            all_models = scan_models(MODELS_PATH)
+            state_mgr.set_models(all_models)
+        
+        models = [m for m in state.models if m.get("size", 0) > LARGE_MODEL_THRESHOLD]
         
         # Adjust selection if needed
-        if selected_idx >= len(models):
-            selected_idx = max(0, len(models) - 1)
+        if selected_idx >= len(models) and models:
+            selected_idx = len(models) - 1
         
         print_header()
         print_models(models, selected_idx)
@@ -310,7 +311,6 @@ def main():
         
         # Check if process is still running
         if current_process and current_process.poll() is not None:
-            # Process ended, clear state
             state_mgr.clear_process()
             current_process = None
             current_log_file = ""
@@ -359,12 +359,12 @@ def main():
                     print(f"\n  {C_red}✗ Invalid port number: {port_input}{C_RESET}")
                     time.sleep(1)
         elif key in ('r', 'R'):
-            # Refresh handled automatically in loop
+            all_models = scan_models(MODELS_PATH)
+            state_mgr.set_models(all_models)
             print(f"\n  {C_green}✓ Models refreshed{C_RESET}")
             time.sleep(0.3)
         elif key in ('k', 'K'):
             if state.is_running:
-                # Stop via state manager
                 proc = state.process_obj
                 if proc:
                     try:
@@ -388,7 +388,7 @@ def main():
                             proc.kill()
                     state_mgr.clear_process()
                 
-                # Start new process through state manager functions
+                # Start new process
                 ctx_size = CTX_SIZE_OPTIONS[ctx_idx]
                 ngl = NGL_OPTIONS[ngl_idx]
                 
@@ -439,9 +439,6 @@ def main():
             except:
                 proc.kill()
         state_mgr.clear_process()
-    
-    # Mark TUI as offline
-    state_mgr.set_webui_status(False)
     
     clear_screen()
     print(f"\n  {C_green}✓ Goodbye!{C_RESET}\n")

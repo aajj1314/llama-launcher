@@ -690,6 +690,9 @@
                     <button class="btn btn-danger" @click="stopModel" :disabled="!isRunning">
                         ■ Stop
                     </button>
+                    <button class="btn btn-secondary" @click="saveConfig">
+                        💾 Save Config
+                    </button>
                 </div>
             </div>
         </div>
@@ -916,14 +919,7 @@
                     }
                 };
                 
-                // Watch for config changes
-                watch(
-                    () => [config.value.ctxIdx, config.value.nglIdx, config.value.port, config.value.llamaCppPath, config.value.timeout, config.value.logLevel, config.value.gpuMemory, config.value.mode],
-                    (newValues, oldValues) => {
-                        console.log('Config changed:', oldValues, '->', newValues);
-                        saveConfig();
-                    }
-                );
+                // Manual save only - removed auto-save to prevent conflicts
                 
                 // Lifecycle
                 onMounted(async () => {

@@ -14,6 +14,13 @@ import logging
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 
+# Import shared modules first to get LOG_DIR
+from state_manager import (
+    StateManager, get_state_manager, ServerStats,
+    scan_models, CTX_SIZE_OPTIONS, NGL_OPTIONS,
+    LLAMA_CPP_PATH, BUILD_BIN_PATH, LOG_DIR, format_size, format_ctx
+)
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -70,13 +77,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
-
-# Import shared modules
-from state_manager import (
-    StateManager, get_state_manager, ServerStats,
-    scan_models, CTX_SIZE_OPTIONS, NGL_OPTIONS,
-    LLAMA_CPP_PATH, BUILD_BIN_PATH, LOG_DIR, format_size
 )
 
 # State manager instance
@@ -486,13 +486,6 @@ async def get_options():
             {"value": 300, "label": "5m"}
         ]
     })
-
-
-def format_ctx(ctx: int) -> str:
-    """Format context size"""
-    if ctx >= 1024:
-        return f"{ctx // 1024}k"
-    return str(ctx)
 
 
 def start_web_server(host: str = WEB_HOST, port: int = WEB_PORT):

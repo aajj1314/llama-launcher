@@ -67,6 +67,23 @@ def format_speed(speed: float) -> str:
         return f"{speed:.1f}"
     return f"{speed:.2f}"
 
+C_RESET = "\033[0m"
+C_BOLD = "\033[1m"
+C_dim = "\033[2m"
+C_cyan = "\033[1;38;5;51m"
+C_magenta = "\033[1;38;5;201m"
+C_orange = "\033[1;38;5;208m"
+C_green = "\033[1;38;5;46m"
+C_red = "\033[1;38;5;196m"
+C_yellow = "\033[1;38;5;226m"
+C_blue = "\033[1;38;5;39m"
+C_purple = "\033[1;38;5;93m"
+C_teal = "\033[1;38;5;43m"
+
+BG_dark = "\033[48;5;16m"
+BG_cyan = "\033[48;5;30m"
+BG_magenta = "\033[48;5;53m"
+
 def scan_large_models() -> List[Dict[str, Any]]:
     """Scan for large models (>1GB) - for TUI display"""
     # Optimized version that filters during scanning
@@ -95,8 +112,10 @@ def scan_large_models() -> List[Dict[str, Any]]:
     # Sort models by name for consistent ordering
     return sorted(models, key=lambda m: m["name"])
 
+
 def clear_screen():
     print("\033[2J\033[H", end="")
+
 
 def terminate_process(proc: Optional[subprocess.Popen], timeout: int = 5) -> None:
     if not proc or proc.poll() is not None:
@@ -107,6 +126,7 @@ def terminate_process(proc: Optional[subprocess.Popen], timeout: int = 5) -> Non
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait()
+
 
 def parse_server_log(log_file: str) -> ServerStats:
     stats = ServerStats()
@@ -144,6 +164,7 @@ def parse_server_log(log_file: str) -> ServerStats:
         pass
     return stats
 
+
 def get_key():
     import termios
     import tty
@@ -164,6 +185,7 @@ def get_key():
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
+
 def get_input(prompt: str, default: str = "") -> str:
     print(f"\n\033[1;38;5;208m{prompt}\033[0m ", end="", flush=True)
     try:
@@ -171,23 +193,6 @@ def get_input(prompt: str, default: str = "") -> str:
         return user_input if user_input else default
     except (EOFError, KeyboardInterrupt):
         return default
-
-C_RESET = "\033[0m"
-C_BOLD = "\033[1m"
-C_dim = "\033[2m"
-C_cyan = "\033[1;38;5;51m"
-C_magenta = "\033[1;38;5;201m"
-C_orange = "\033[1;38;5;208m"
-C_green = "\033[1;38;5;46m"
-C_red = "\033[1;38;5;196m"
-C_yellow = "\033[1;38;5;226m"
-C_blue = "\033[1;38;5;39m"
-C_purple = "\033[1;38;5;93m"
-C_teal = "\033[1;38;5;43m"
-
-BG_dark = "\033[48;5;16m"
-BG_cyan = "\033[48;5;30m"
-BG_magenta = "\033[48;5;53m"
 
 def print_header():
     clear_screen()
@@ -319,7 +324,7 @@ def main():
         run_mode = state.current_mode
         ctx_idx = state.ctx_idx
         ngl_idx = state.ngl_idx
-        port = state.port
+        port = state.port if state.port != 80 else 8000
         
         # Sync models to state manager (only once at start)
         all_models = scan_models(MODELS_PATH)

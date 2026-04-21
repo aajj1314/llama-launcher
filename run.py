@@ -107,6 +107,7 @@ def scan_large_models() -> List[Dict[str, Any]]:
                             "size_formatted": format_size(stat_info.st_size)
                         })
     except Exception as e:
+        logger.error(f"Error scanning models: {e}")
         print(f"  {C_red}✗ Error scanning models: {e}{C_RESET}")
     
     # Sort models by name for consistent ordering
@@ -160,8 +161,8 @@ def parse_server_log(log_file: str) -> ServerStats:
         time_match = re.search(r'(\d+\.?\d+) s', content)
         if time_match:
             stats.total_time = float(time_match.group(1))
-    except:
-        pass
+    except Exception as e:
+        logger.error(f"Error parsing server log: {e}")
     return stats
 
 

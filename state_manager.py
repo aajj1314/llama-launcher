@@ -12,7 +12,8 @@ from dataclasses import dataclass, field
 import logging
 
 # Constants (shared with main application)
-LLAMA_CPP_PATH = os.environ.get("LLAMA_CPP_PATH", "/home/anan/llama.cpp")
+DEFAULT_LLAMA_CPP_PATH = os.environ.get("LLAMA_CPP_PATH", "/home/anan/llama.cpp")
+LLAMA_CPP_PATH = DEFAULT_LLAMA_CPP_PATH
 MODELS_PATH = os.path.join(LLAMA_CPP_PATH, "models")
 BUILD_BIN_PATH = os.path.join(LLAMA_CPP_PATH, "build", "bin")
 LOG_DIR = os.path.join(LLAMA_CPP_PATH, "logs")
@@ -111,7 +112,7 @@ class AppState:
     # Configuration
     ctx_idx: int = 0
     ngl_idx: int = 4
-    port: int = 80
+    port: int = 8000
     llama_cpp_path: str = LLAMA_CPP_PATH
     timeout: int = 30  # Model loading timeout in seconds
     log_level: str = "INFO"  # Log level: DEBUG, INFO, WARNING, ERROR
@@ -189,7 +190,6 @@ class StateManager:
     
     def _load_config(self):
         """Load configuration from file into state"""
-        # Declare global variables at the beginning
         global LLAMA_CPP_PATH, MODELS_PATH, BUILD_BIN_PATH, LOG_DIR
         
         try:
@@ -272,9 +272,17 @@ class StateManager:
     
     def set_models(self, models: List[Dict[str, Any]]) -> None:
         """Update model list"""
-        with self._state_lock:
-            self._state.models = models
-            self._notify_watchers()
+        try:
+            with self._state_lock:
+                if isinstance(models, list):
+                    self._state.models = models
+                    self._notify_watchers()
+                else:
+                    logger.warning("Invalid models list, using empty list")
+                    self._state.models = []
+                    self._notify_watchers()
+        except Exception as e:
+            logger.error(f"Error in set_models: {e}")
     
     def set_config(self, ctx_idx: int = None, ngl_idx: int = None, port: int = None, 
                    timeout: int = None, log_level: str = None, gpu_memory: int = None) -> bool:

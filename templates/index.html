@@ -758,7 +758,7 @@
                     mode: 1,
                     ctxIdx: 0,
                     nglIdx: 4,
-                    port: 80,
+                    port: 8000,
                     llamaCppPath: '',
                     timeout: 30,
                     logLevel: 'INFO',
@@ -912,6 +912,8 @@
                             console.log('Config saved successfully');
                             // Refresh state to update UI
                             await fetchState();
+                            // Show success message
+                            alert('Configuration saved successfully!');
                         }
                     } catch (e) {
                         console.error('Failed to save config:', e);
@@ -947,7 +949,8 @@
                     refreshModels,
                     selectModel,
                     startModel,
-                    stopModel
+                    stopModel,
+                    saveConfig
                 };
             }
         }).mount('#app');

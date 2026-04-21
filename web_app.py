@@ -67,7 +67,7 @@ WEB_PORT = 8000  # 默认端口
 app = FastAPI(
     title="Llama Launcher WebUI",
     description="Web interface for llama.cpp model management",
-    version="3.1"
+    version="3.2"
 )
 
 # CORS middleware
@@ -117,8 +117,8 @@ def parse_server_log(log_file: str) -> ServerStats:
         time_match = re.search(r'(\d+\.?\d+) s', content)
         if time_match:
             stats.total_time = float(time_match.group(1))
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error(f"Error parsing server log: {e}")
     return stats
 
 
@@ -135,7 +135,7 @@ def terminate_process(proc: Optional[subprocess.Popen], timeout: int = 5) -> boo
         proc.wait()
         return True
     except Exception as e:
-        print(f"Error terminating process: {e}")
+        logger.error(f"Error terminating process: {e}")
         return False
 
 
@@ -196,7 +196,7 @@ def stats_updater():
                 stats = parse_server_log(state.log_file)
                 state_mgr.update_stats(stats)
         except Exception as e:
-            print(f"Stats update error: {e}")
+            logger.error(f"Stats update error: {e}")
         time.sleep(1.0)
 
 

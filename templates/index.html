@@ -655,7 +655,7 @@
                 
                 <div class="form-group">
                     <label>Port (Server mode)</label>
-                    <input type="number" v-model="config.port" min="1" max="65535" :disabled="isRunning">
+                    <input type="number" v-model.number="config.port" min="1" max="65535" :disabled="isRunning">
                 </div>
                 
                 <div class="form-group">
@@ -665,7 +665,7 @@
                 
                 <div class="form-group">
                     <label>Timeout (seconds)</label>
-                    <input type="number" v-model="config.timeout" min="1" max="300" :disabled="isRunning">
+                    <input type="number" v-model.number="config.timeout" min="1" max="300" :disabled="isRunning">
                 </div>
                 
                 <div class="form-group">
@@ -680,7 +680,7 @@
                 
                 <div class="form-group">
                     <label>GPU Memory Limit (MB)</label>
-                    <input type="number" v-model="config.gpuMemory" min="0" :disabled="isRunning" placeholder="0 = no limit">
+                    <input type="number" v-model.number="config.gpuMemory" min="0" :disabled="isRunning" placeholder="0 = no limit">
                 </div>
                 
                 <div class="btn-group">
@@ -917,15 +917,11 @@
                 
                 // Watch for config changes
                 watch(
-                    () => config.value.mode,
-                    (newMode) => {
-                        console.log('Mode changed to:', newMode);
+                    () => config.value,
+                    (newConfig, oldConfig) => {
+                        console.log('Config changed:', oldConfig, '->', newConfig);
                         watchConfig();
-                    }
-                );
-                watch(
-                    () => [config.value.ctxIdx, config.value.nglIdx, config.value.port, config.value.llamaCppPath, config.value.timeout, config.value.logLevel, config.value.gpuMemory],
-                    watchConfig,
+                    },
                     { deep: true }
                 );
                 

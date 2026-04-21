@@ -11,6 +11,8 @@ import time
 import signal
 import re
 import threading
+import logging
+import logging.handlers
 from typing import Optional, List, Dict, Any, Tuple
 from dataclasses import dataclass
 
@@ -21,6 +23,36 @@ from state_manager import (
     LLAMA_CPP_PATH, BUILD_BIN_PATH, LOG_DIR,
     LARGE_MODEL_THRESHOLD, format_size, format_ctx
 )
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Create file handler with rotation
+log_file = os.path.join(LOG_DIR, "llama_launcher_tui.log")
+file_handler = logging.handlers.RotatingFileHandler(
+    log_file,
+    maxBytes=10 * 1024 * 1024,  # 10MB per file
+    backupCount=5  # Keep up to 5 backup files
+)
+
+# Create console handler
+console_handler = logging.StreamHandler()
+
+# Create formatter
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+# Set formatters
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+
+# Add handlers to logger
+if not logger.handlers:
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
 
 # Get singleton state manager
 state_mgr = get_state_manager()
@@ -37,9 +69,31 @@ def format_speed(speed: float) -> str:
 
 def scan_large_models() -> List[Dict[str, Any]]:
     """Scan for large models (>1GB) - for TUI display"""
-    all_models = scan_models(MODELS_PATH)
-    # TUI shows only large models to keep display clean
-    return [m for m in all_models if m.get("size", 0) > LARGE_MODEL_THRESHOLD]
+    # Optimized version that filters during scanning
+    if MODELS_PATH is None:
+        return []
+    
+    models = []
+    try:
+        os.makedirs(MODELS_PATH, exist_ok=True)
+        # Use os.scandir for better performance
+        with os.scandir(MODELS_PATH) as entries:
+            for entry in entries:
+                if entry.is_file() and entry.name.endswith(".gguf"):
+                    stat_info = entry.stat()
+                    # Filter large models during scanning
+                    if stat_info.st_size > LARGE_MODEL_THRESHOLD:
+                        models.append({
+                            "name": entry.name,
+                            "path": entry.path,
+                            "size": stat_info.st_size,
+                            "size_formatted": format_size(stat_info.st_size)
+                        })
+    except Exception as e:
+        print(f"  {C_red}✗ Error scanning models: {e}{C_RESET}")
+    
+    # Sort models by name for consistent ordering
+    return sorted(models, key=lambda m: m["name"])
 
 def clear_screen():
     print("\033[2J\033[H", end="")
@@ -201,6 +255,7 @@ def print_controls():
     print(f"\n  {C_orange}{C_BOLD}▸ CONTROLS{C_RESET}\n")
     print(f"  {C_dim}[{C_RESET}{C_cyan}↑↓/WS/45{C_RESET}{C_dim}]{C_RESET} Navigate  {C_dim}[{C_RESET}{C_cyan}1/2/3{C_RESET}{C_dim}]{C_RESET} Mode  {C_dim}[{C_RESET}{C_cyan}C{C_RESET}{C_dim}]{C_RESET} Context  {C_dim}[{C_RESET}{C_cyan}G{C_RESET}{C_dim}]{C_RESET} NGL")
     print(f"  {C_dim}[{C_RESET}{C_cyan}P{C_RESET}{C_dim}]{C_RESET} Port  {C_dim}[{C_RESET}{C_cyan}R{C_RESET}{C_dim}]{C_RESET} Refresh  {C_dim}[{C_RESET}{C_cyan}K{C_RESET}{C_dim}]{C_RESET} Kill  {C_dim}[{C_RESET}{C_cyan}ENTER{C_RESET}{C_dim}]{C_RESET} Launch  {C_dim}[{C_RESET}{C_cyan}Q{C_RESET}{C_dim}]{C_RESET} Quit")
+    print(f"  {C_dim}[{C_RESET}{C_cyan}T{C_RESET}{C_dim}]{C_RESET} Toggle TUI  {C_dim}[{C_RESET}{C_cyan}W{C_RESET}{C_dim}]{C_RESET} Toggle WebUI  {C_dim}[{C_RESET}{C_cyan}S{C_RESET}{C_dim}]{C_RESET} Save Config")
 
 def print_footer():
     print(f"\n  {C_dim}─────────────────────────────────────────────────────────────────────────────{C_RESET}")
@@ -241,143 +296,140 @@ def run_embedding(model_path: str, ngl: int):
     ]
     return subprocess.Popen(args, stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)
 
+def on_state_change(state_dict):
+    """Callback function for state changes"""
+    pass
+
 def main():
     """Main TUI loop with state manager integration"""
     running = True
     selected_idx = 0
     last_update_time = 0
     
-    # Sync initial state from state manager
-    models = scan_large_models()
-    state = state_mgr.state
-    run_mode = state.current_mode
-    ctx_idx = state.ctx_idx
-    ngl_idx = state.ngl_idx
-    port = state.port
-    
-    # Sync models to state manager (only once at start)
-    all_models = scan_models(MODELS_PATH)
-    state_mgr.set_models(all_models)
-    
-    print_header()
-    print(f"  {C_green}✓ Initializing Llama.cpp Launcher v3.1 (Cyberpunk Edition)...{C_RESET}")
-    print(f"  {C_green}✓ Found {len(models)} large models{C_RESET}")
-    print(f"  {C_green}✓ State Manager connected{C_RESET}")
-    time.sleep(0.5)
-
-    while running:
-        # Get state from state manager
-        state = state_mgr.state
+    try:
+        # Set TUI status to online
+        state_mgr.set_tui_status(True)
         
-        # Get process state from state manager
-        current_process = state.process_obj
-        current_log_file = state.log_file
+        # Register state change callback
+        state_mgr.register_callback(on_state_change)
+        
+        # Sync initial state from state manager
+        models = scan_large_models()
+        state = state_mgr.state
         run_mode = state.current_mode
         ctx_idx = state.ctx_idx
         ngl_idx = state.ngl_idx
         port = state.port
         
-        # Get server stats from state manager
-        server_stats = state.server_stats
-        
-        # Update stats from log file for server mode
-        current_time = time.time()
-        if current_process and current_process.poll() is None and current_log_file:
-            if current_time - last_update_time > 0.5:
-                parsed_stats = parse_server_log(current_log_file)
-                if parsed_stats.is_valid():
-                    server_stats = parsed_stats
-                    state_mgr.update_stats(server_stats)
-                last_update_time = current_time
-        
-        # Re-scan models only if list is empty (avoid repeated scanning)
-        if not state.models:
-            all_models = scan_models(MODELS_PATH)
-            state_mgr.set_models(all_models)
-        
-        models = [m for m in state.models if m.get("size", 0) > LARGE_MODEL_THRESHOLD]
-        
-        # Adjust selection if needed
-        if selected_idx >= len(models) and models:
-            selected_idx = len(models) - 1
+        # Sync models to state manager (only once at start)
+        all_models = scan_models(MODELS_PATH)
+        state_mgr.set_models(all_models)
         
         print_header()
-        print_models(models, selected_idx)
-        print_settings(run_mode, ctx_idx, ngl_idx, port)
-        print_stats(server_stats, current_process, port)
-        print_controls()
-        print_footer()
-        print(f"\n\033[1;38;5;51m> \033[0m", end="", flush=True)
-        
-        # Check if process is still running
-        if current_process and current_process.poll() is not None:
-            state_mgr.clear_process()
-            current_process = None
-            current_log_file = ""
-        
-        try:
-            key = get_key()
-        except:
-            key = 'q'
-        
-        # Configuration change handlers - sync to state manager
-        if key in ('UP', 'w', 'W', '4'):
-            if selected_idx > 0:
-                selected_idx -= 1
-        elif key in ('DOWN', 's', 'S', '5'):
-            if selected_idx < len(models) - 1:
-                selected_idx += 1
-        elif key == '1':
-            state_mgr.set_run_mode(0)
-        elif key == '2':
-            state_mgr.set_run_mode(1)
-        elif key == '3':
-            state_mgr.set_run_mode(2)
-        elif key in ('c', 'C'):
-            new_ctx = (ctx_idx + 1) % len(CTX_SIZE_OPTIONS)
-            state_mgr.set_config(ctx_idx=new_ctx)
-        elif key in ('g', 'G'):
-            new_ngl = (ngl_idx + 1) % len(NGL_OPTIONS)
-            state_mgr.set_config(ngl_idx=new_ngl)
-        elif key in ('p', 'P'):
+        print(f"  {C_green}✓ Initializing Llama.cpp Launcher v3.1 (Cyberpunk Edition)...{C_RESET}")
+        print(f"  {C_green}✓ Found {len(models)} large models{C_RESET}")
+        print(f"  {C_green}✓ State Manager connected{C_RESET}")
+        time.sleep(0.5)
+
+        while running:
+            # Get state from state manager
+            state = state_mgr.state
+            
+            # Get process state from state manager
+            current_process = state.process_obj
+            current_log_file = state.log_file
+            run_mode = state.current_mode
+            ctx_idx = state.ctx_idx
+            ngl_idx = state.ngl_idx
+            port = state.port
+            
+            # Get server stats from state manager
+            server_stats = state.server_stats
+            
+            # Update stats from log file for server mode
+            current_time = time.time()
+            if current_process and current_process.poll() is None and current_log_file:
+                if current_time - last_update_time > 0.5:
+                    parsed_stats = parse_server_log(current_log_file)
+                    if parsed_stats.is_valid():
+                        server_stats = parsed_stats
+                        state_mgr.update_stats(server_stats)
+                    last_update_time = current_time
+            
+            # Re-scan models only if list is empty (avoid repeated scanning)
+            if not state.models:
+                all_models = scan_models(MODELS_PATH)
+                state_mgr.set_models(all_models)
+            
+            models = [m for m in state.models if m.get("size", 0) > LARGE_MODEL_THRESHOLD]
+            
+            # Adjust selection if needed
+            if selected_idx >= len(models) and models:
+                selected_idx = len(models) - 1
+            
             print_header()
             print_models(models, selected_idx)
             print_settings(run_mode, ctx_idx, ngl_idx, port)
             print_stats(server_stats, current_process, port)
             print_controls()
             print_footer()
-            port_input = get_input("Enter port number (1-65535):")
-            if port_input:
-                try:
-                    new_port = int(port_input)
-                    if 1 <= new_port <= 65535:
-                        state_mgr.set_config(port=new_port)
-                    else:
-                        print(f"\n  {C_red}✗ Port must be between 1 and 65535{C_RESET}")
-                        time.sleep(1)
-                except ValueError:
-                    print(f"\n  {C_red}✗ Invalid port number: {port_input}{C_RESET}")
-                    time.sleep(1)
-        elif key in ('r', 'R'):
-            all_models = scan_models(MODELS_PATH)
-            state_mgr.set_models(all_models)
-            print(f"\n  {C_green}✓ Models refreshed{C_RESET}")
-            time.sleep(0.3)
-        elif key in ('k', 'K'):
-            if state.is_running:
-                proc = state.process_obj
-                if proc:
-                    try:
-                        proc.terminate()
-                        proc.wait(timeout=5)
-                    except:
-                        proc.kill()
+            print(f"\n\033[1;38;5;51m> \033[0m", end="", flush=True)
+            
+            # Check if process is still running
+            if current_process and current_process.poll() is not None:
                 state_mgr.clear_process()
-        elif key in ('\r', '\n'):
-            if models and 0 <= selected_idx < len(models):
-                model = models[selected_idx]
-                
-                # Stop any running process first
+                current_process = None
+                current_log_file = ""
+            
+            try:
+                key = get_key()
+            except:
+                key = 'q'
+            
+            # Configuration change handlers - sync to state manager
+            if key in ('UP', 'w', 'W', '4'):
+                if selected_idx > 0:
+                    selected_idx -= 1
+            elif key in ('DOWN', 's', 'S', '5'):
+                if selected_idx < len(models) - 1:
+                    selected_idx += 1
+            elif key == '1':
+                state_mgr.set_run_mode(0)
+            elif key == '2':
+                state_mgr.set_run_mode(1)
+            elif key == '3':
+                state_mgr.set_run_mode(2)
+            elif key in ('c', 'C'):
+                new_ctx = (ctx_idx + 1) % len(CTX_SIZE_OPTIONS)
+                state_mgr.set_config(ctx_idx=new_ctx)
+            elif key in ('g', 'G'):
+                new_ngl = (ngl_idx + 1) % len(NGL_OPTIONS)
+                state_mgr.set_config(ngl_idx=new_ngl)
+            elif key in ('p', 'P'):
+                print_header()
+                print_models(models, selected_idx)
+                print_settings(run_mode, ctx_idx, ngl_idx, port)
+                print_stats(server_stats, current_process, port)
+                print_controls()
+                print_footer()
+                port_input = get_input("Enter port number (1-65535):")
+                if port_input:
+                    try:
+                        new_port = int(port_input)
+                        if 1 <= new_port <= 65535:
+                            state_mgr.set_config(port=new_port)
+                        else:
+                            print(f"\n  {C_red}✗ Port must be between 1 and 65535{C_RESET}")
+                            time.sleep(1)
+                    except ValueError:
+                        print(f"\n  {C_red}✗ Invalid port number: {port_input}{C_RESET}")
+                        time.sleep(1)
+            elif key in ('r', 'R'):
+                all_models = scan_models(MODELS_PATH)
+                state_mgr.set_models(all_models)
+                print(f"\n  {C_green}✓ Models refreshed{C_RESET}")
+                time.sleep(0.3)
+            elif key in ('k', 'K'):
                 if state.is_running:
                     proc = state.process_obj
                     if proc:
@@ -387,64 +439,123 @@ def main():
                         except:
                             proc.kill()
                     state_mgr.clear_process()
-                
-                # Start new process
-                ctx_size = CTX_SIZE_OPTIONS[ctx_idx]
-                ngl = NGL_OPTIONS[ngl_idx]
-                
-                if run_mode == 0:  # CLI
-                    proc = run_cli(model["path"], ctx_size, ngl)
-                    state_mgr.set_process(
-                        is_running=True,
-                        pid=proc.pid,
-                        process_obj=proc,
-                        model_name=model["name"],
-                        model_path=model["path"],
-                        mode=run_mode,
-                        log_file=""
-                    )
-                elif run_mode == 1:  # Server
-                    proc, log_file = run_server(model["path"], ctx_size, ngl, port)
-                    state_mgr.set_process(
-                        is_running=True,
-                        pid=proc.pid,
-                        process_obj=proc,
-                        model_name=model["name"],
-                        model_path=model["path"],
-                        mode=run_mode,
-                        log_file=log_file
-                    )
-                elif run_mode == 2:  # Embedding
-                    proc = run_embedding(model["path"], ngl)
-                    state_mgr.set_process(
-                        is_running=True,
-                        pid=proc.pid,
-                        process_obj=proc,
-                        model_name=model["name"],
-                        model_path=model["path"],
-                        mode=run_mode,
-                        log_file=""
-                    )
-        elif key in ('q', 'Q'):
-            running = False
-    
-    # Cleanup: stop any running process
-    state = state_mgr.state
-    if state.is_running:
-        proc = state.process_obj
-        if proc:
-            try:
-                proc.terminate()
-                proc.wait(timeout=5)
-            except:
-                proc.kill()
-        state_mgr.clear_process()
-    
-    clear_screen()
-    print(f"\n  {C_green}✓ Goodbye!{C_RESET}\n")
+            elif key in ('t', 'T'):
+                # Toggle TUI status
+                current_tui_status = state.tui_online
+                state_mgr.set_tui_status(not current_tui_status)
+                print(f"  {C_green}✓ TUI status toggled to {'Online' if not current_tui_status else 'Offline'}{C_RESET}")
+                time.sleep(0.3)
+            elif key in ('w', 'W'):
+                # Toggle WebUI status (placeholder)
+                print(f"  {C_yellow}⚠ WebUI toggle not implemented yet{C_RESET}")
+                time.sleep(0.3)
+            elif key in ('s', 'S'):
+                # Save configuration
+                try:
+                    # This will trigger save_config through set_config
+                    state_mgr.set_config(ctx_idx=ctx_idx, ngl_idx=ngl_idx, port=port)
+                    print(f"  {C_green}✓ Configuration saved{C_RESET}")
+                except Exception as e:
+                    print(f"  {C_red}✗ Error saving configuration: {e}{C_RESET}")
+                time.sleep(0.3)
+            elif key in ('\r', '\n'):
+                if models and 0 <= selected_idx < len(models):
+                    model = models[selected_idx]
+                    
+                    # Stop any running process first
+                    if state.is_running:
+                        proc = state.process_obj
+                        if proc:
+                            try:
+                                proc.terminate()
+                                proc.wait(timeout=5)
+                            except:
+                                proc.kill()
+                        state_mgr.clear_process()
+                    
+                    # Start new process
+                    ctx_size = CTX_SIZE_OPTIONS[ctx_idx]
+                    ngl = NGL_OPTIONS[ngl_idx]
+                    
+                    if run_mode == 0:  # CLI
+                        proc = run_cli(model["path"], ctx_size, ngl)
+                        state_mgr.set_process(
+                            is_running=True,
+                            pid=proc.pid,
+                            process_obj=proc,
+                            model_name=model["name"],
+                            model_path=model["path"],
+                            mode=run_mode,
+                            log_file=""
+                        )
+                    elif run_mode == 1:  # Server
+                        proc, log_file = run_server(model["path"], ctx_size, ngl, port)
+                        state_mgr.set_process(
+                            is_running=True,
+                            pid=proc.pid,
+                            process_obj=proc,
+                            model_name=model["name"],
+                            model_path=model["path"],
+                            mode=run_mode,
+                            log_file=log_file
+                        )
+                    elif run_mode == 2:  # Embedding
+                        proc = run_embedding(model["path"], ngl)
+                        state_mgr.set_process(
+                            is_running=True,
+                            pid=proc.pid,
+                            process_obj=proc,
+                            model_name=model["name"],
+                            model_path=model["path"],
+                            mode=run_mode,
+                            log_file=""
+                        )
+            elif key in ('q', 'Q'):
+                running = False
+        
+        # Cleanup: stop any running process
+        state = state_mgr.state
+        if state.is_running:
+            proc = state.process_obj
+            if proc:
+                try:
+                    proc.terminate()
+                    proc.wait(timeout=5)
+                except:
+                    proc.kill()
+            state_mgr.clear_process()
+        
+        # Set TUI status to offline
+        state_mgr.set_tui_status(False)
+        
+        clear_screen()
+        print(f"\n  {C_green}✓ Goodbye!{C_RESET}\n")
+    except Exception as e:
+        print(f"\n  {C_red}✗ Error: {e}{C_RESET}\n")
+        # Cleanup before exiting
+        try:
+            state = state_mgr.state
+            if state.is_running:
+                proc = state.process_obj
+                if proc:
+                    try:
+                        proc.terminate()
+                        proc.wait(timeout=5)
+                    except:
+                        proc.kill()
+                state_mgr.clear_process()
+            # Set TUI status to offline
+            state_mgr.set_tui_status(False)
+        except:
+            pass
+        finally:
+            clear_screen()
+            print(f"\n  {C_red}✗ Application exited with error{C_RESET}\n")
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
         pass
+    except Exception as e:
+        print(f"\n  {C_red}✗ Fatal error: {e}{C_RESET}\n")

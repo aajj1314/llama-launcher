@@ -456,7 +456,7 @@
     </div>
 
     <script>
-        const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
+        const { createApp, ref, computed, onMounted, onUnmounted, watch } = Vue;
         
         createApp({
             setup() {
@@ -616,6 +616,9 @@
                         saveConfig();
                     }, 500);
                 };
+                
+                // Watch for config changes
+                watch(() => [config.value.ctxIdx, config.value.nglIdx, config.value.port], watchConfig, { deep: true });
                 
                 // Lifecycle
                 onMounted(async () => {

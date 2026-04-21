@@ -289,19 +289,20 @@ async def update_config(request: Request):
         mode = data.get("mode")
         
         # Update path configuration if provided
-        if llama_cpp_path:
-            global LLAMA_CPP_PATH, MODELS_PATH, BUILD_BIN_PATH, LOG_DIR
-            # Validate path exists
-            if os.path.exists(llama_cpp_path):
-                LLAMA_CPP_PATH = llama_cpp_path
-                MODELS_PATH = os.path.join(LLAMA_CPP_PATH, "models")
-                BUILD_BIN_PATH = os.path.join(LLAMA_CPP_PATH, "build", "bin")
-                LOG_DIR = os.path.join(LLAMA_CPP_PATH, "logs")
-                # Create necessary directories
-                for path in [MODELS_PATH, BUILD_BIN_PATH, LOG_DIR]:
-                    os.makedirs(path, exist_ok=True)
-            else:
-                return JSONResponse(content={"success": False, "error": f"Path does not exist: {llama_cpp_path}"}, status_code=400)
+        if llama_cpp_path is not None:
+            if llama_cpp_path:
+                global LLAMA_CPP_PATH, MODELS_PATH, BUILD_BIN_PATH, LOG_DIR
+                # Validate path exists
+                if os.path.exists(llama_cpp_path):
+                    LLAMA_CPP_PATH = llama_cpp_path
+                    MODELS_PATH = os.path.join(LLAMA_CPP_PATH, "models")
+                    BUILD_BIN_PATH = os.path.join(LLAMA_CPP_PATH, "build", "bin")
+                    LOG_DIR = os.path.join(LLAMA_CPP_PATH, "logs")
+                    # Create necessary directories
+                    for path in [MODELS_PATH, BUILD_BIN_PATH, LOG_DIR]:
+                        os.makedirs(path, exist_ok=True)
+                else:
+                    return JSONResponse(content={"success": False, "error": f"Path does not exist: {llama_cpp_path}"}, status_code=400)
         
         # Update run mode if provided
         if mode is not None:

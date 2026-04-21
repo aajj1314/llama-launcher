@@ -628,10 +628,10 @@
                 
                 <div class="form-group">
                     <label>Running Mode</label>
-                    <select v-model.number="config.mode" :disabled="isRunning">
-                        <option :value="0">CLI - Interactive</option>
-                        <option :value="1">Server - API Server</option>
-                        <option :value="2">Embedding - Vector Mode</option>
+                    <select v-model="config.mode" :disabled="isRunning">
+                        <option value="0">CLI - Interactive</option>
+                        <option value="1">Server - API Server</option>
+                        <option value="2">Embedding - Vector Mode</option>
                     </select>
                 </div>
                 
@@ -920,7 +920,7 @@
                     () => config.value.mode,
                     (newMode) => {
                         console.log('Mode changed to:', newMode);
-                        saveConfig();
+                        watchConfig();
                     }
                 );
                 watch(

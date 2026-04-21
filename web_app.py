@@ -305,11 +305,14 @@ async def update_config(request: Request):
         
         # Update run mode if provided
         if mode is not None:
-            mode = int(mode)
-            if 0 <= mode <= 2:
-                state_mgr.set_run_mode(mode)
-            else:
-                return JSONResponse(content={"success": False, "error": "Invalid mode"}, status_code=400)
+            try:
+                mode = int(mode)
+                if 0 <= mode <= 2:
+                    state_mgr.set_run_mode(mode)
+                else:
+                    return JSONResponse(content={"success": False, "error": "Invalid mode"}, status_code=400)
+            except ValueError:
+                return JSONResponse(content={"success": False, "error": "Invalid mode format"}, status_code=400)
         
         # Validate and update configuration
         success = state_mgr.set_config(

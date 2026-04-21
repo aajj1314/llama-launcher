@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 import logging
 
 # Constants (shared with main application)
-DEFAULT_LLAMA_CPP_PATH = os.environ.get("LLAMA_CPP_PATH", "/home/anan/llama.cpp")
+DEFAULT_LLAMA_CPP_PATH = os.environ.get("LLAMA_CPP_PATH", "/workspace/llama.cpp")
 LLAMA_CPP_PATH = DEFAULT_LLAMA_CPP_PATH
 MODELS_PATH = os.path.join(LLAMA_CPP_PATH, "models")
 BUILD_BIN_PATH = os.path.join(LLAMA_CPP_PATH, "build", "bin")

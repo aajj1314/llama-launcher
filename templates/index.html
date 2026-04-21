@@ -628,10 +628,10 @@
                 
                 <div class="form-group">
                     <label>Running Mode</label>
-                    <select v-model="config.mode" :disabled="isRunning">
-                        <option value="0">CLI - Interactive</option>
-                        <option value="1">Server - API Server</option>
-                        <option value="2">Embedding - Vector Mode</option>
+                    <select v-model.number="config.mode" :disabled="isRunning">
+                        <option :value="0">CLI - Interactive</option>
+                        <option :value="1">Server - API Server</option>
+                        <option :value="2">Embedding - Vector Mode</option>
                     </select>
                 </div>
                 
@@ -819,6 +819,7 @@
                     try {
                         const res = await fetch('/api/state');
                         const data = await res.json();
+                        console.log('Fetched state:', data);
                         
                         isRunning.value = data.is_running;
                         processPid.value = data.process_pid;
@@ -885,6 +886,7 @@
                 
                 const saveConfig = async () => {
                     try {
+                        console.log('Saving config:', config.value);
                         await fetch('/api/config', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -914,7 +916,18 @@
                 };
                 
                 // Watch for config changes
-                watch(() => [config.value.ctxIdx, config.value.nglIdx, config.value.port, config.value.llamaCppPath, config.value.timeout, config.value.logLevel, config.value.gpuMemory, config.value.mode], watchConfig, { deep: true });
+                watch(
+                    () => config.value.mode,
+                    (newMode) => {
+                        console.log('Mode changed to:', newMode);
+                        saveConfig();
+                    }
+                );
+                watch(
+                    () => [config.value.ctxIdx, config.value.nglIdx, config.value.port, config.value.llamaCppPath, config.value.timeout, config.value.logLevel, config.value.gpuMemory],
+                    watchConfig,
+                    { deep: true }
+                );
                 
                 // Lifecycle
                 onMounted(async () => {

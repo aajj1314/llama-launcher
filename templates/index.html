@@ -895,7 +895,8 @@
                                 llama_cpp_path: config.value.llamaCppPath,
                                 timeout: config.value.timeout,
                                 log_level: config.value.logLevel,
-                                gpu_memory: config.value.gpuMemory
+                                gpu_memory: config.value.gpuMemory,
+                                mode: config.value.mode
                             })
                         });
                     } catch (e) {
@@ -913,7 +914,7 @@
                 };
                 
                 // Watch for config changes
-                watch(() => [config.value.ctxIdx, config.value.nglIdx, config.value.port, config.value.llamaCppPath, config.value.timeout, config.value.logLevel, config.value.gpuMemory], watchConfig, { deep: true });
+                watch(() => [config.value.ctxIdx, config.value.nglIdx, config.value.port, config.value.llamaCppPath, config.value.timeout, config.value.logLevel, config.value.gpuMemory, config.value.mode], watchConfig, { deep: true });
                 
                 // Lifecycle
                 onMounted(async () => {

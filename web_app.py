@@ -286,6 +286,7 @@ async def update_config(request: Request):
         timeout = data.get("timeout")
         log_level = data.get("log_level")
         gpu_memory = data.get("gpu_memory")
+        mode = data.get("mode")
         
         # Update path configuration if provided
         if llama_cpp_path:
@@ -301,6 +302,14 @@ async def update_config(request: Request):
                     os.makedirs(path, exist_ok=True)
             else:
                 return JSONResponse(content={"success": False, "error": f"Path does not exist: {llama_cpp_path}"}, status_code=400)
+        
+        # Update run mode if provided
+        if mode is not None:
+            mode = int(mode)
+            if 0 <= mode <= 2:
+                state_mgr.set_run_mode(mode)
+            else:
+                return JSONResponse(content={"success": False, "error": "Invalid mode"}, status_code=400)
         
         # Validate and update configuration
         success = state_mgr.set_config(

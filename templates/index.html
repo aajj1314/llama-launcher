@@ -907,6 +907,8 @@
                             alert('Config save failed: ' + data.error);
                         } else {
                             console.log('Config saved successfully');
+                            // Refresh state to update UI
+                            await fetchState();
                         }
                     } catch (e) {
                         console.error('Failed to save config:', e);
@@ -914,23 +916,13 @@
                     }
                 };
                 
-                // Watch config changes
-                const debounceTimer = ref(null);
-                const watchConfig = () => {
-                    if (debounceTimer.value) clearTimeout(debounceTimer.value);
-                    debounceTimer.value = setTimeout(() => {
-                        saveConfig();
-                    }, 500);
-                };
-                
                 // Watch for config changes
                 watch(
-                    () => config.value,
-                    (newConfig, oldConfig) => {
-                        console.log('Config changed:', oldConfig, '->', newConfig);
-                        watchConfig();
-                    },
-                    { deep: true }
+                    () => [config.value.ctxIdx, config.value.nglIdx, config.value.port, config.value.llamaCppPath, config.value.timeout, config.value.logLevel, config.value.gpuMemory, config.value.mode],
+                    (newValues, oldValues) => {
+                        console.log('Config changed:', oldValues, '->', newValues);
+                        saveConfig();
+                    }
                 );
                 
                 // Lifecycle

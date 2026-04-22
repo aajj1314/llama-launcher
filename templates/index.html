@@ -873,6 +873,7 @@
                 const processPid = ref(null);
                 const currentModel = ref('');
                 const tuiOnline = ref(true);
+                const configInitialized = ref(false);
                 
                 const config = ref({
                     mode: 1,
@@ -952,14 +953,19 @@
                         currentModel.value = data.current_model_name || '';
                         tuiOnline.value = data.webui_online;
                         
-                        config.value.port = data.port;
-                        config.value.ctxIdx = data.ctx_idx !== undefined ? data.ctx_idx : 0;
-                        config.value.nglIdx = data.ngl_idx !== undefined ? data.ngl_idx : 4;
-                        config.value.mode = data.current_mode !== undefined ? data.current_mode : 1;
-                        config.value.llamaCppPath = data.llama_cpp_path || '';
-                        config.value.timeout = data.timeout !== undefined ? data.timeout : 30;
-                        config.value.logLevel = data.log_level || 'INFO';
-                        config.value.gpuMemory = data.gpu_memory !== undefined ? data.gpu_memory : 0;
+                        // Only update config fields during initialization
+                        // This prevents auto-reset of user input
+                        if (!configInitialized.value) {
+                            config.value.port = data.port;
+                            config.value.ctxIdx = data.ctx_idx !== undefined ? data.ctx_idx : 0;
+                            config.value.nglIdx = data.ngl_idx !== undefined ? data.ngl_idx : 4;
+                            config.value.mode = data.current_mode !== undefined ? data.current_mode : 1;
+                            config.value.llamaCppPath = data.llama_cpp_path || '';
+                            config.value.timeout = data.timeout !== undefined ? data.timeout : 30;
+                            config.value.logLevel = data.log_level || 'INFO';
+                            config.value.gpuMemory = data.gpu_memory !== undefined ? data.gpu_memory : 0;
+                            configInitialized.value = true;
+                        }
                         
                         if (data.server_stats) {
                             stats.value = data.server_stats;
@@ -1045,6 +1051,8 @@
                             alert('Config save failed: ' + data.error);
                         } else {
                             console.log('Config saved successfully');
+                            // Reset initialization flag to update UI with saved values
+                            configInitialized.value = false;
                             // Refresh state to update UI
                             await fetchState();
                             // Show success message
@@ -1073,6 +1081,8 @@
                         if (data.success) {
                             pathMessage.value = 'Path updated successfully!';
                             pathSuccess.value = true;
+                            // Reset initialization flag to update UI
+                            configInitialized.value = false;
                             // Refresh models
                             await refreshModels();
                             // Refresh state

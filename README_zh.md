@@ -1,12 +1,12 @@
 # Llama Launcher
 
 <p align="center">
-  <img src="https://img.shields.io/badge/版本-3.0-blue?style=for-the-badge" alt="版本">
+  <img src="https://img.shields.io/badge/版本-3.1-blue?style=for-the-badge" alt="版本">
   <img src="https://img.shields.io/badge/许可证-MIT-green?style=for-the-badge" alt="许可证">
   <img src="https://img.shields.io/badge/Python-3.8+-orange?style=for-the-badge" alt="Python">
 </p>
 
-> 一个**赛博朋克风格 TUI 启动器**，用于管理 llama.cpp 模型，支持实时指标监控。
+> 一个**赛博朋克风格 TUI 启动器**，用于管理 llama.cpp 模型，支持实时指标监控和 WebUI 界面。
 
 ## ✨ 功能特性
 
@@ -15,6 +15,10 @@
 - ⚡ **三种模式** - CLI 交互模式、Server API 模式、Embedding 模式
 - 🔄 **动态扫描** - 自动检测 models 目录下的模型
 - 🖥️ **跨平台** - 支持 Linux、macOS 和 Windows
+- 🌐 **WebUI 支持** - 基于浏览器的远程管理界面
+- 📁 **模块化架构** - 清晰、组织良好的代码结构
+- 🔧 **配置管理** - 外部配置文件支持
+- 🛡️ **增强错误处理** - 健壮的错误管理
 
 ## 🚀 快速开始
 
@@ -23,11 +27,22 @@
 - Python 3.8+
 - llama.cpp 安装在 `/home/anan/llama.cpp`
 - models 目录下有 GGUF 模型文件（>1GB）
+- 额外的 Python 依赖：
+  ```bash
+  pip install fastapi uvicorn requests
+  ```
 
 ### 运行方法
 
 ```bash
+# 同时运行 TUI 和 WebUI
+python3 launcher.py
+
+# 仅运行 TUI
 python3 run.py
+
+# 仅运行 WebUI
+python3 launcher.py --mode web --web-port 8087
 ```
 
 ## 🎮 操作指南
@@ -50,12 +65,13 @@ python3 run.py
 
 ### 路径配置
 
-在 `run.py` 中修改以下路径：
+在 `config.py` 中修改以下路径：
 
 ```python
-LLAMA_CPP_PATH = "/home/anan/llama.cpp"
+LLAMA_CPP_PATH = os.environ.get("LLAMA_CPP_PATH", "/home/anan/llama.cpp")
 MODELS_PATH = os.path.join(LLAMA_CPP_PATH, "models")
 BUILD_BIN_PATH = os.path.join(LLAMA_CPP_PATH, "build", "bin")
+LOG_DIR = os.path.join(LLAMA_CPP_PATH, "logs")
 ```
 
 ### Context 大小选项
@@ -88,6 +104,18 @@ http://localhost:8080/v1/completions
 http://localhost:8080/embedding
 ```
 
+## 🌐 WebUI
+
+WebUI 提供基于浏览器的界面，用于管理 llama.cpp 模型：
+
+- **访问地址**：`http://localhost:8087`
+- **功能**：
+  - 模型列表和选择
+  - 模型启动/停止控制
+  - 实时指标监控
+  - 配置管理
+  - 响应式设计，支持不同设备
+
 ## 📊 指标说明
 
 | 指标 | 说明 |
@@ -102,7 +130,7 @@ http://localhost:8080/embedding
 
 ```
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║  ◈◈◈ LLAMA.CPP MODEL LAUNCHER v3.0 ◈◈◈  ║
+║  ◈◈◈ LLAMA.CPP MODEL LAUNCHER v3.1 ◈◈◈  ║
 ║  Cyberpunk Edition                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
@@ -140,8 +168,27 @@ git clone https://github.com/aajj1314/llama-launcher.git
 # 进入目录
 cd llama-launcher
 
+# 安装依赖
+pip install fastapi uvicorn requests
+
 # 运行
-python3 run.py
+python3 launcher.py
+```
+
+## 📁 项目结构
+
+```
+├── launcher.py        # 统一启动脚本
+├── run.py             # TUI 界面实现
+├── state_manager.py   # 状态管理（单例模式）
+├── web_app.py         # WebUI 实现（FastAPI）
+├── config.py          # 配置管理
+├── utils.py           # 工具函数
+├── process_manager.py # 进程管理
+├── templates/         # WebUI 模板
+│   └── index.html     # WebUI 主页面
+├── README.md          # 英文文档
+└── README_zh.md       # 中文文档
 ```
 
 ## 📝 许可证

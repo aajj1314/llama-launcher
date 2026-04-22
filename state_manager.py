@@ -11,12 +11,19 @@ from typing import Optional, List, Dict, Any, Callable
 from dataclasses import dataclass, field
 import logging
 
+# Import configuration modules
+from config import (
+    load_config, save_config, get_paths, create_directories,
+    DEFAULT_LLAMA_CPP_PATH, CTX_SIZE_OPTIONS, NGL_OPTIONS,
+    LARGE_MODEL_THRESHOLD
+)
+
 # Constants (shared with main application)
-DEFAULT_LLAMA_CPP_PATH = os.environ.get("LLAMA_CPP_PATH", "/home/anan/llama.cpp")
 LLAMA_CPP_PATH = DEFAULT_LLAMA_CPP_PATH
-MODELS_PATH = os.path.join(LLAMA_CPP_PATH, "models")
-BUILD_BIN_PATH = os.path.join(LLAMA_CPP_PATH, "build", "bin")
-LOG_DIR = os.path.join(LLAMA_CPP_PATH, "logs")
+_paths = get_paths(LLAMA_CPP_PATH)
+MODELS_PATH = _paths["models_path"]
+BUILD_BIN_PATH = _paths["build_bin_path"]
+LOG_DIR = _paths["log_dir"]
 
 # Configure logging
 import logging.handlers
@@ -53,13 +60,6 @@ console_handler.setFormatter(formatter)
 if not logger.handlers:
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
-
-CTX_SIZE_OPTIONS = [4096, 8192, 16384, 32768, 65536, 131072]
-NGL_OPTIONS = [0, 33, 66, 99, 999]
-LARGE_MODEL_THRESHOLD = 1024 * 1024 * 1024  # 1GB
-
-# Configuration file path
-CONFIG_FILE = os.path.join(os.path.expanduser("~"), ".llama_launcher_config.json")
 
 
 @dataclass
@@ -193,19 +193,20 @@ class StateManager:
         global LLAMA_CPP_PATH, MODELS_PATH, BUILD_BIN_PATH, LOG_DIR
         
         try:
-            config = load_config()
+            from config import load_config as config_load_config
+            config = config_load_config()
             if config:
                 # Load path configurations
                 if "llama_cpp_path" in config:
                     # Validate path exists
                     if os.path.exists(config["llama_cpp_path"]):
                         LLAMA_CPP_PATH = config["llama_cpp_path"]
-                        MODELS_PATH = os.path.join(LLAMA_CPP_PATH, "models")
-                        BUILD_BIN_PATH = os.path.join(LLAMA_CPP_PATH, "build", "bin")
-                        LOG_DIR = os.path.join(LLAMA_CPP_PATH, "logs")
+                        _paths = get_paths(LLAMA_CPP_PATH)
+                        MODELS_PATH = _paths["models_path"]
+                        BUILD_BIN_PATH = _paths["build_bin_path"]
+                        LOG_DIR = _paths["log_dir"]
                         # Create necessary directories
-                        for path in [MODELS_PATH, BUILD_BIN_PATH, LOG_DIR]:
-                            os.makedirs(path, exist_ok=True)
+                        create_directories(_paths)
                         # Update state
                         self._state.llama_cpp_path = LLAMA_CPP_PATH
                     else:
@@ -253,9 +254,8 @@ class StateManager:
         except Exception as e:
             logger.error(f"Error in _load_config: {e}")
             # Ensure default directories exist
-            os.makedirs(MODELS_PATH, exist_ok=True)
-            os.makedirs(BUILD_BIN_PATH, exist_ok=True)
-            os.makedirs(LOG_DIR, exist_ok=True)
+            _paths = get_paths(LLAMA_CPP_PATH)
+            create_directories(_paths)
             # Update state with default path
             self._state.llama_cpp_path = LLAMA_CPP_PATH
     
@@ -344,6 +344,7 @@ class StateManager:
                     "log_level": self._state.log_level,
                     "gpu_memory": self._state.gpu_memory
                 }
+            from config import save_config
             save_config(config)
             logger.debug("Configuration saved successfully")
         except Exception as e:

@@ -6,7 +6,7 @@ Test script to verify config update functionality
 import requests
 import json
 
-BASE_URL = "http://localhost:8087"
+BASE_URL = "http://localhost:8000"
 
 def test_config_update():
     """Test config update functionality"""

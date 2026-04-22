@@ -83,102 +83,11 @@ app.add_middleware(
 state_mgr = get_state_manager()
 
 # ============== Server Stats Parsing ==============
-def parse_server_log(log_file: str) -> ServerStats:
-    """Parse server log to extract metrics"""
-    stats = ServerStats()
-    if not log_file or not os.path.exists(log_file):
-        return stats
-    
-    try:
-        with open(log_file, "r") as f:
-            content = f.read()
-        
-        prompt_match = re.search(r'prompt token.*?(\d+)', content, re.IGNORECASE)
-        if prompt_match:
-            stats.prompt_tokens = int(prompt_match.group(1))
-        
-        eval_match = re.search(r'evaluation.*?(\d+) tokens', content, re.IGNORECASE)
-        if eval_match:
-            stats.eval_tokens = int(eval_match.group(1))
-        
-        ppd_match = re.search(r'prompt.*?(\d+\.?\d*) tok/ ?s', content, re.IGNORECASE)
-        if ppd_match:
-            stats.prompt_per_second = float(ppd_match.group(1))
-        
-        epd_match = re.search(r'(\d+\.?\d*) tok/ ?s', content)
-        if epd_match:
-            stats.eval_per_second = float(epd_match.group(1))
-        
-        ctx_match = re.search(r'context.*?(\d+)/(\d+)', content, re.IGNORECASE)
-        if ctx_match:
-            stats.ctx_used = int(ctx_match.group(1))
-            stats.ctx_total = int(ctx_match.group(2))
-        
-        time_match = re.search(r'(\d+\.?\d+) s', content)
-        if time_match:
-            stats.total_time = float(time_match.group(1))
-    except Exception as e:
-        logger.error(f"Error parsing server log: {e}")
-    return stats
-
-
-def terminate_process(proc: Optional[subprocess.Popen], timeout: int = 5) -> bool:
-    """Terminate a process gracefully"""
-    if not proc or proc.poll() is not None:
-        return True
-    try:
-        proc.terminate()
-        proc.wait(timeout=timeout)
-        return True
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        proc.wait()
-        return True
-    except Exception as e:
-        logger.error(f"Error terminating process: {e}")
-        return False
+from utils import parse_server_log, terminate_process
+from process_manager import run_cli, run_server, run_embedding, validate_binary
 
 
 # ============== Process Management ==============
-def run_cli(model_path: str, ctx_size: int, ngl: int) -> subprocess.Popen:
-    """Run CLI mode"""
-    args = [
-        os.path.join(BUILD_BIN_PATH, "llama-cli"),
-        "-m", model_path,
-        "-ngl", str(ngl),
-        "-c", str(ctx_size),
-        "--color", "on"
-    ]
-    return subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-
-def run_server(model_path: str, ctx_size: int, ngl: int, port: int):
-    """Run Server mode"""
-    os.makedirs(LOG_DIR, exist_ok=True)
-    log_file = os.path.join(LOG_DIR, f"server_{port}.log")
-    with open(log_file, "w") as f:
-        f.write("")
-    args = [
-        os.path.join(BUILD_BIN_PATH, "llama-server"),
-        "-m", model_path,
-        "-ngl", str(ngl),
-        "-c", str(ctx_size),
-        "--port", str(port),
-        "--host", "0.0.0.0"
-    ]
-    with open(log_file, "a") as f:
-        proc = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=f, stderr=subprocess.STDOUT)
-    return proc, log_file
-
-
-def run_embedding(model_path: str, ngl: int) -> subprocess.Popen:
-    """Run Embedding mode"""
-    args = [
-        os.path.join(BUILD_BIN_PATH, "llama-embedding"),
-        "-m", model_path,
-        "-ngl", str(ngl)
-    ]
-    return subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 # Background stats update thread
@@ -364,12 +273,10 @@ async def start_model(request: Request):
             return JSONResponse(content={"success": False, "error": f"Model file does not exist: {model['path']}"}, status_code=404)
         
         # Check if llama.cpp binaries exist
-        if mode == 0 and not os.path.exists(os.path.join(BUILD_BIN_PATH, "llama-cli")):
-            return JSONResponse(content={"success": False, "error": "llama-cli binary not found"}, status_code=500)
-        if mode == 1 and not os.path.exists(os.path.join(BUILD_BIN_PATH, "llama-server")):
-            return JSONResponse(content={"success": False, "error": "llama-server binary not found"}, status_code=500)
-        if mode == 2 and not os.path.exists(os.path.join(BUILD_BIN_PATH, "llama-embedding")):
-            return JSONResponse(content={"success": False, "error": "llama-embedding binary not found"}, status_code=500)
+        if not validate_binary(mode):
+            binaries = {0: "llama-cli", 1: "llama-server", 2: "llama-embedding"}
+            binary_name = binaries.get(mode, "unknown")
+            return JSONResponse(content={"success": False, "error": f"{binary_name} binary not found"}, status_code=500)
         
         # Get current configuration
         state = state_mgr.state

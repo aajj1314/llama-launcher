@@ -1,12 +1,12 @@
 # Llama Launcher
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-3.1-blue?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/Version-3.2-blue?style=for-the-badge" alt="Version">
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License">
   <img src="https://img.shields.io/badge/Python-3.8+-orange?style=for-the-badge" alt="Python">
 </p>
 
-> A **cyberpunk-themed TUI launcher** for llama.cpp models with real-time metrics monitoring and WebUI support.
+> A **cyberpunk-themed TUI launcher** for llama.cpp models with real-time metrics monitoring and WebUI support. Now supports custom llama.cpp path configuration!
 
 ## ✨ Features
 
@@ -17,7 +17,7 @@
 - 🖥️ **Cross-platform** - Supports Linux, macOS, and Windows
 - 🌐 **WebUI Support** - Browser-based interface for remote management
 - 📁 **Modular Architecture** - Clean, organized code structure
-- 🔧 **Configuration Management** - External config file support
+- 🔧 **Configurable llama.cpp Path** - Set custom llama.cpp installation path (TUI + WebUI)
 - 🛡️ **Enhanced Error Handling** - Robust error management
 
 ## 🚀 Quick Start
@@ -25,8 +25,8 @@
 ### Prerequisites
 
 - Python 3.8+
-- llama.cpp installed at `/home/anan/llama.cpp`
-- GGUF model files in the models directory (>1GB)
+- llama.cpp installation (can be at any path)
+- GGUF model files in the models directory
 - Additional Python dependencies:
   ```bash
   pip install fastapi uvicorn requests
@@ -36,13 +36,13 @@
 
 ```bash
 # Run TUI and WebUI together
-python3 launcher.py
+python launcher.py
 
 # Run only TUI
-python3 run.py
+python run.py
 
 # Run only WebUI
-python3 launcher.py --mode web --web-port 8087
+python launcher.py --mode web --web-port 8087
 ```
 
 ## 🎮 Controls
@@ -56,23 +56,22 @@ python3 launcher.py --mode web --web-port 8087
 | `C` | Cycle Context size (4k → 128k) |
 | `G` | Cycle NGL value |
 | `P` | Set port number |
+| `L` | Configure llama.cpp path |
 | `R` | Refresh model list |
 | `ENTER` | Launch selected model |
 | `K` | Kill running model |
 | `Q` | Quit |
 
-## ⚙️ Configuration
+## 🔧 Configuration
 
-### Paths
+### Path Configuration
 
-Edit the following in `config.py`:
+You can configure the llama.cpp path through:
 
-```python
-LLAMA_CPP_PATH = os.environ.get("LLAMA_CPP_PATH", "/home/anan/llama.cpp")
-MODELS_PATH = os.path.join(LLAMA_CPP_PATH, "models")
-BUILD_BIN_PATH = os.path.join(LLAMA_CPP_PATH, "build", "bin")
-LOG_DIR = os.path.join(LLAMA_CPP_PATH, "logs")
-```
+1. **TUI** - Press `L` in the TUI interface
+2. **WebUI** - Use the path configuration section in the web interface
+3. **Environment Variable** - Set `LLAMA_CPP_PATH` before running
+4. **Config File** - Saved configuration will be loaded automatically
 
 ### Context Size Options
 
@@ -97,12 +96,17 @@ When running in Server mode:
 
 ### API Endpoints
 
-```
-http://localhost:8080/
-http://localhost:8080/v1/models
-http://localhost:8080/v1/completions
-http://localhost:8080/embedding
-```
+The web server provides these REST API endpoints:
+
+- `GET /` - Main UI
+- `GET /api/state` - Get current application state
+- `GET /api/models` - Get model list
+- `GET /api/path` - Get current llama.cpp path
+- `POST /api/config` - Update configuration
+- `POST /api/path` - Update llama.cpp path
+- `POST /api/start` - Start a model
+- `POST /api/stop` - Stop running model
+- `GET /api/options` - Get available options
 
 ## 🌐 WebUI
 
@@ -111,9 +115,10 @@ The WebUI provides a browser-based interface for managing llama.cpp models:
 - **Access URL**: `http://localhost:8087`
 - **Features**:
   - Model list and selection
-  - Model启动/停止控制
+  - Model start/stop control
   - Real-time metrics monitoring
   - Configuration management
+  - Llama.cpp path configuration
   - Responsive design for different devices
 
 ## 📊 Metrics Display
@@ -125,6 +130,26 @@ The WebUI provides a browser-based interface for managing llama.cpp models:
 | PPD | Prompt tokens per second |
 | EPD | Evaluation tokens per second |
 | CONTEXT | Visual progress bar with percentage |
+
+## 📁 Project Structure
+
+```
+llama-launcher/
+├── launcher.py           # Unified startup script
+├── run.py                # TUI interface implementation
+├── state_manager.py      # State manager (singleton pattern)
+├── web_app.py            # WebUI implementation (FastAPI)
+├── process_manager.py    # Process management
+├── utils.py              # Utility functions
+├── config.py             # Configuration management
+├── templates/
+│   └── index.html        # WebUI main page
+├── docs/
+│   └── superpowers/
+│       └── plans/        # Implementation plans and history
+├── README.md             # This file
+└── README_zh.md          # 中文文档
+```
 
 ## 🛠️ Development
 
@@ -139,23 +164,7 @@ cd llama-launcher
 pip install fastapi uvicorn requests
 
 # Run
-python3 launcher.py
-```
-
-## 📁 Project Structure
-
-```
-├── launcher.py        # 统一启动脚本
-├── run.py             # TUI 界面实现
-├── state_manager.py   # 状态管理（单例模式）
-├── web_app.py         # WebUI 实现（FastAPI）
-├── config.py          # 配置管理
-├── utils.py           # 工具函数
-├── process_manager.py # 进程管理
-├── templates/         # WebUI 模板
-│   └── index.html     # WebUI 主页面
-├── README.md          # 英文文档
-└── README_zh.md       # 中文文档
+python launcher.py
 ```
 
 ## 📝 License
@@ -165,6 +174,13 @@ MIT License - See [LICENSE](LICENSE) for details.
 ## 🤝 Contributing
 
 Pull requests are welcome! Feel free to open an issue for any suggestions or bugs.
+
+## 📚 Documentation
+
+- **README.md** - English documentation (this file)
+- **README_zh.md** - Chinese documentation
+- **CODE_WIKI.md** - Code reference and architecture documentation
+- **docs/superpowers/plans/** - Implementation history and planning documents
 
 ---
 

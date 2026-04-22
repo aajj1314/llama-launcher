@@ -8,19 +8,19 @@ import os
 import sys
 import subprocess
 import time
-import signal
-import re
-import threading
 import logging
 import logging.handlers
-from typing import Optional, List, Dict, Any, Tuple
-from dataclasses import dataclass
+from typing import Optional, List, Dict, Any
+
+# Import utility modules
+from utils import parse_server_log, terminate_process
+from process_manager import run_cli, run_server, run_embedding
 
 # Import shared state manager
 from state_manager import (
-    StateManager, get_state_manager, ServerStats,
+    get_state_manager, ServerStats,
     scan_models, CTX_SIZE_OPTIONS, NGL_OPTIONS,
-    LLAMA_CPP_PATH, BUILD_BIN_PATH, LOG_DIR,
+    LLAMA_CPP_PATH, LOG_DIR,
     LARGE_MODEL_THRESHOLD, format_size, format_ctx
 )
 
@@ -117,9 +117,6 @@ def scan_large_models() -> List[Dict[str, Any]]:
 def clear_screen():
     print("\033[2J\033[H", end="")
 
-
-from utils import parse_server_log, terminate_process
-from process_manager import run_cli, run_server, run_embedding
 
 def get_key():
     import termios
@@ -303,7 +300,7 @@ def main():
             print_stats(server_stats, current_process, port)
             print_controls()
             print_footer()
-            print(f"\n\033[1;38;5;51m> \033[0m", end="", flush=True)
+            print("\n\033[1;38;5;51m> \033[0m", end="", flush=True)
             
             # Check if process is still running
             if current_process and current_process.poll() is not None:

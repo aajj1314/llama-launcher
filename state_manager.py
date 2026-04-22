@@ -13,7 +13,7 @@ import logging
 
 # Import configuration modules
 from config import (
-    load_config, save_config, get_paths, create_directories,
+    load_config, save_config, get_paths, create_directories, CONFIG_FILE,
     DEFAULT_LLAMA_CPP_PATH, CTX_SIZE_OPTIONS, NGL_OPTIONS,
     LARGE_MODEL_THRESHOLD, update_llama_cpp_path, get_current_paths
 )
@@ -553,25 +553,7 @@ def format_ctx(ctx: int) -> str:
     return str(ctx)
 
 
-def load_config() -> Dict[str, Any]:
-    """Load configuration from file"""
-    config = {}
-    try:
-        if os.path.exists(CONFIG_FILE):
-            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                config = json.load(f)
-    except Exception as e:
-        logger.error(f"Error loading config: {e}")
-    return config
 
-def save_config(config: Dict[str, Any]) -> None:
-    """Save configuration to file"""
-    try:
-        os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
-        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-            json.dump(config, f, indent=2, ensure_ascii=False)
-    except Exception as e:
-        logger.error(f"Error saving config: {e}")
 
 def scan_models(models_path: str = None) -> List[Dict[str, Any]]:
     """Scan for GGUF model files with optimized performance"""

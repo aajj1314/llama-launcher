@@ -5,23 +5,19 @@ Provides RESTful API for model management and monitoring
 """
 
 import os
-import sys
 import time
-import re
-import subprocess
 import threading
 import logging
-from typing import Optional, List, Dict, Any
-from dataclasses import dataclass
+from typing import Dict, Any
 
 # Import shared modules first to get LOG_DIR
 from state_manager import (
-    StateManager, get_state_manager, ServerStats,
+    get_state_manager, ServerStats,
     scan_models, CTX_SIZE_OPTIONS, NGL_OPTIONS,
-    LLAMA_CPP_PATH, BUILD_BIN_PATH, LOG_DIR, format_size, format_ctx
+    LLAMA_CPP_PATH, LOG_DIR, format_size, format_ctx
 )
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -91,14 +87,12 @@ from process_manager import run_cli, run_server, run_embedding, validate_binary
 
 
 # Background stats update thread
-_stats_thread_running = True
 _stats_thread = None
 
 
 def stats_updater():
     """Background thread to update server stats"""
-    global _stats_thread_running
-    while _stats_thread_running:
+    while True:
         try:
             state = state_mgr.state
             if state.is_running and state.log_file:

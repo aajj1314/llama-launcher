@@ -508,41 +508,35 @@
         function updateConfigFields() {
             const config = localState.config;
 
-            // 只在配置有变化时更新字段，保留用户当前输入
+            // 只在页面初始化时更新字段，保留用户当前输入
+            // 避免频繁的状态刷新覆盖用户输入
+            if (window.configInitialized) {
+                return;
+            }
+
+            // 初始化配置字段
             if (config.run_mode) {
-                const currentMode = document.getElementById('runMode').value;
-                if (currentMode !== config.run_mode) {
-                    document.getElementById('runMode').value = config.run_mode;
-                }
+                document.getElementById('runMode').value = config.run_mode;
             }
 
             if (config.context_size) {
-                const currentContext = document.getElementById('contextSize').value;
-                if (parseInt(currentContext) !== config.context_size) {
-                    document.getElementById('contextSize').value = config.context_size.toString();
-                }
+                document.getElementById('contextSize').value = config.context_size.toString();
             }
 
             if (config.ngl !== undefined) {
-                const currentNgl = document.getElementById('ngl').value;
-                if (parseInt(currentNgl) !== config.ngl) {
-                    document.getElementById('ngl').value = config.ngl.toString();
-                }
+                document.getElementById('ngl').value = config.ngl.toString();
             }
 
             if (config.port) {
-                const currentPort = document.getElementById('port').value;
-                if (parseInt(currentPort) !== config.port) {
-                    document.getElementById('port').value = config.port.toString();
-                }
+                document.getElementById('port').value = config.port.toString();
             }
 
             if (config.llama_cpp_path) {
-                const currentPath = document.getElementById('llamaCppPath').value;
-                if (currentPath !== config.llama_cpp_path) {
-                    document.getElementById('llamaCppPath').value = config.llama_cpp_path;
-                }
+                document.getElementById('llamaCppPath').value = config.llama_cpp_path;
             }
+
+            // 标记配置已初始化
+            window.configInitialized = true;
         }
 
         // 更新进程信息
@@ -637,6 +631,9 @@
                 if (result.success) {
                     showAlert('配置已保存！', 'success');
                     localState.config = result.config;
+                    // 重置初始化标志，以便下次更新时反映保存的值
+                    window.configInitialized = false;
+                    updateConfigFields();
                 }
             } catch (error) {
                 showAlert('保存配置失败: ' + error.message, 'error');
@@ -664,6 +661,9 @@
                     if (result.success) {
                         showAlert('路径已更新！', 'success');
                         await fetchState();
+                        // 重置初始化标志，以便更新配置字段
+                        window.configInitialized = false;
+                        updateConfigFields();
                     }
                 } else {
                     const errorData = await response.json();

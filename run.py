@@ -398,7 +398,6 @@ def main():
                         print(f"  {C_cyan}New llama.cpp path: {C_RESET}{paths['llama_cpp_path']}")
                         print(f"  {C_cyan}Models path: {C_RESET}{paths['models_path']}")
                         # Update MODELS_PATH
-                        global MODELS_PATH
                         MODELS_PATH = paths['models_path']
                         # Rescan models
                         all_models = scan_models(MODELS_PATH)

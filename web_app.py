@@ -126,10 +126,6 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown"""
-    # Stop stats update thread
-    global _stats_thread_running
-    _stats_thread_running = False
-    
     # Set WebUI status to offline
     state_mgr.set_webui_status(False)
     

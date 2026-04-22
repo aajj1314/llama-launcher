@@ -19,6 +19,7 @@
 - 📁 **Modular Architecture** - Clean, organized code structure
 - 🔧 **Configurable llama.cpp Path** - Set custom llama.cpp installation path (TUI + WebUI)
 - 🛡️ **Enhanced Error Handling** - Robust error management
+- ✅ **Parameter Persistence** - WebUI parameters no longer auto-reset when modified
 
 ## 🚀 Quick Start
 

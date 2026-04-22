@@ -215,12 +215,13 @@ def print_stats(stats: ServerStats, process: Optional[subprocess.Popen], port: i
 def print_controls():
     print(f"\n  {C_orange}{C_BOLD}▸ CONTROLS{C_RESET}\n")
     print(f"  {C_dim}[{C_RESET}{C_cyan}↑↓/WS/45{C_RESET}{C_dim}]{C_RESET} Navigate  {C_dim}[{C_RESET}{C_cyan}1/2/3{C_RESET}{C_dim}]{C_RESET} Mode  {C_dim}[{C_RESET}{C_cyan}C{C_RESET}{C_dim}]{C_RESET} Context  {C_dim}[{C_RESET}{C_cyan}G{C_RESET}{C_dim}]{C_RESET} NGL")
-    print(f"  {C_dim}[{C_RESET}{C_cyan}P{C_RESET}{C_dim}]{C_RESET} Port  {C_dim}[{C_RESET}{C_cyan}R{C_RESET}{C_dim}]{C_RESET} Refresh  {C_dim}[{C_RESET}{C_cyan}K{C_RESET}{C_dim}]{C_RESET} Kill  {C_dim}[{C_RESET}{C_cyan}ENTER{C_RESET}{C_dim}]{C_RESET} Launch  {C_dim}[{C_RESET}{C_cyan}Q{C_RESET}{C_dim}]{C_RESET} Quit")
-    print(f"  {C_dim}[{C_RESET}{C_cyan}T{C_RESET}{C_dim}]{C_RESET} Toggle TUI  {C_dim}[{C_RESET}{C_cyan}W{C_RESET}{C_dim}]{C_RESET} Toggle WebUI  {C_dim}[{C_RESET}{C_cyan}S{C_RESET}{C_dim}]{C_RESET} Save Config")
+    print(f"  {C_dim}[{C_RESET}{C_cyan}P{C_RESET}{C_dim}]{C_RESET} Port  {C_dim}[{C_RESET}{C_cyan}L{C_RESET}{C_dim}]{C_RESET} Path  {C_dim}[{C_RESET}{C_cyan}R{C_RESET}{C_dim}]{C_RESET} Refresh  {C_dim}[{C_RESET}{C_cyan}K{C_RESET}{C_dim}]{C_RESET} Kill")
+    print(f"  {C_dim}[{C_RESET}{C_cyan}ENTER{C_RESET}{C_dim}]{C_RESET} Launch  {C_dim}[{C_RESET}{C_cyan}Q{C_RESET}{C_dim}]{C_RESET} Quit  {C_dim}[{C_RESET}{C_cyan}S{C_RESET}{C_dim}]{C_RESET} Save Config")
 
 def print_footer():
     print(f"\n  {C_dim}─────────────────────────────────────────────────────────────────────────────{C_RESET}")
-    print(f"  {C_dim}│{C_RESET}  {C_cyan}llama.cpp{C_RESET} {C_dim}|{C_RESET} {C_purple}Python TUI{C_RESET} {C_dim}|{C_RESET} {C_teal}Cyberpunk Edition v3.0{C_RESET}  {'':20}  {C_dim}│{C_RESET}")
+    print(f"  {C_dim}│{C_RESET}  {C_cyan}llama.cpp{C_RESET} {C_dim}|{C_RESET} {C_purple}Python TUI{C_RESET} {C_dim}|{C_RESET} {C_teal}Cyberpunk Edition v3.1{C_RESET}  {'':20}  {C_dim}│{C_RESET}")
+    print(f"  {C_dim}│{C_RESET}  {C_cyan}Path:{C_RESET} {LLAMA_CPP_PATH}  {'':30}  {C_dim}│{C_RESET}")
     print(f"  {C_dim}─────────────────────────────────────────────────────────────────────────────{C_RESET}")
 
 
@@ -387,6 +388,31 @@ def main():
                 except Exception as e:
                     print(f"  {C_red}✗ Error saving configuration: {e}{C_RESET}")
                 time.sleep(0.3)
+            elif key in ('l', 'L'):
+                # Set llama.cpp path
+                print_header()
+                print(f"  {C_orange}{C_BOLD}▸ LLAMA.CPP PATH CONFIGURATION{C_RESET}
+")
+                print(f"  {C_cyan}Current path: {C_RESET}{LLAMA_CPP_PATH}")
+                path_input = get_input("Enter new llama.cpp path (press Enter to keep current):")
+                if path_input:
+                    try:
+                        paths = state_mgr.set_llama_cpp_path(path_input)
+                        print(f"\n  {C_green}✓ Path updated successfully!{C_RESET}")
+                        print(f"  {C_cyan}New llama.cpp path: {C_RESET}{paths['llama_cpp_path']}")
+                        print(f"  {C_cyan}Models path: {C_RESET}{paths['models_path']}")
+                        # Update MODELS_PATH
+                        global MODELS_PATH
+                        MODELS_PATH = paths['models_path']
+                        # Rescan models
+                        all_models = scan_models(MODELS_PATH)
+                        state_mgr.set_models(all_models)
+                    except Exception as e:
+                        print(f"\n  {C_red}✗ Error updating path: {e}{C_RESET}")
+                    time.sleep(1)
+                else:
+                    print("  {C_yellow}Path unchanged.{C_RESET}")
+                    time.sleep(0.5)
             elif key in ('\r', '\n'):
                 if models and 0 <= selected_idx < len(models):
                     model = models[selected_idx]

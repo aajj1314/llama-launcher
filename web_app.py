@@ -408,6 +408,47 @@ async def get_options():
     })
 
 
+@app.get("/api/path")
+async def get_path():
+    """Get current llama.cpp path"""
+    try:
+        paths = state_mgr.get_paths()
+        return JSONResponse(content={"success": True, "paths": paths})
+    except Exception as e:
+        logger.error(f"Error in get_path: {e}")
+        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/api/path")
+async def update_path(request: Request):
+    """Update llama.cpp path"""
+    try:
+        data = await request.json()
+        path = data.get("path")
+        
+        if not path:
+            return JSONResponse(content={"success": False, "error": "Path is required"}, status_code=400)
+        
+        # Update path using state manager
+        paths = state_mgr.set_llama_cpp_path(path)
+        
+        # Update global paths
+        global LLAMA_CPP_PATH, MODELS_PATH, BUILD_BIN_PATH, LOG_DIR
+        LLAMA_CPP_PATH = paths["llama_cpp_path"]
+        MODELS_PATH = paths["models_path"]
+        BUILD_BIN_PATH = paths["build_bin_path"]
+        LOG_DIR = paths["log_dir"]
+        
+        # Rescan models with new path
+        models = scan_models()
+        state_mgr.set_models(models)
+        
+        return JSONResponse(content={"success": True, "paths": paths})
+    except Exception as e:
+        logger.error(f"Error in update_path: {e}")
+        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
+
+
 def start_web_server(host: str = WEB_HOST, port: int = WEB_PORT):
     """Start the web server"""
     uvicorn.run(app, host=host, port=port, log_level="info")

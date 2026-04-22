@@ -739,6 +739,15 @@
                     <input id="path-input" type="text" v-model="config.llamaCppPath" :disabled="isRunning" placeholder="/path/to/llama.cpp" autocomplete="off">
                 </div>
                 
+                <div class="form-group" v-if="!isRunning">
+                    <button class="btn btn-secondary" @click="updatePath" style="width: 100%;">
+                        📁 Update llama.cpp Path
+                    </button>
+                    <div v-if="pathMessage" class="mt-2 p-2 rounded" :class="pathSuccess ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'">
+                        {{ pathMessage }}
+                    </div>
+                </div>
+                
                 <div class="form-group">
                     <label for="timeout-input">Timeout (seconds)</label>
                     <input id="timeout-input" type="number" v-model.number="config.timeout" min="1" max="300" :disabled="isRunning" inputmode="numeric">
@@ -844,6 +853,9 @@
                     logLevel: 'INFO',
                     gpuMemory: 0
                 });
+                
+                const pathMessage = ref('');
+                const pathSuccess = ref(false);
                 
                 const stats = ref({
                     prompt_tokens: 0,
@@ -1010,6 +1022,41 @@
                     } catch (e) {
                         console.error('Failed to save config:', e);
                         alert('Failed to save config: ' + e.message);
+                    }
+                };
+                
+                const updatePath = async () => {
+                    if (!config.value.llamaCppPath) {
+                        pathMessage.value = 'Please enter a path';
+                        pathSuccess.value = false;
+                        return;
+                    }
+                    
+                    try {
+                        const res = await fetch('/api/path', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ path: config.value.llamaCppPath })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            pathMessage.value = 'Path updated successfully!';
+                            pathSuccess.value = true;
+                            // Refresh models
+                            await refreshModels();
+                            // Refresh state
+                            await fetchState();
+                            // Clear message after 3 seconds
+                            setTimeout(() => {
+                                pathMessage.value = '';
+                            }, 3000);
+                        } else {
+                            pathMessage.value = 'Error: ' + data.error;
+                            pathSuccess.value = false;
+                        }
+                    } catch (e) {
+                        pathMessage.value = 'Error updating path: ' + e.message;
+                        pathSuccess.value = false;
                     }
                 };
                 

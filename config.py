@@ -16,6 +16,12 @@ DEFAULT_LOG_LEVEL = "INFO"
 # Configuration file path
 CONFIG_FILE = os.path.join(os.path.expanduser("~"), ".llama_launcher_config.json")
 
+# Global paths
+LLAMA_CPP_PATH = DEFAULT_LLAMA_CPP_PATH
+MODELS_PATH = os.path.join(LLAMA_CPP_PATH, "models")
+BUILD_BIN_PATH = os.path.join(LLAMA_CPP_PATH, "build", "bin")
+LOG_DIR = os.path.join(LLAMA_CPP_PATH, "logs")
+
 # Context size options
 CTX_SIZE_OPTIONS = [4096, 8192, 16384, 32768, 65536, 131072]
 
@@ -62,3 +68,26 @@ def create_directories(paths: Dict[str, str]) -> None:
     """Create necessary directories"""
     for path in paths.values():
         os.makedirs(path, exist_ok=True)
+
+def update_llama_cpp_path(new_path: str) -> Dict[str, str]:
+    """Update the llama.cpp path and related paths"""
+    global LLAMA_CPP_PATH, MODELS_PATH, BUILD_BIN_PATH, LOG_DIR
+    LLAMA_CPP_PATH = new_path
+    MODELS_PATH = os.path.join(LLAMA_CPP_PATH, "models")
+    BUILD_BIN_PATH = os.path.join(LLAMA_CPP_PATH, "build", "bin")
+    LOG_DIR = os.path.join(LLAMA_CPP_PATH, "logs")
+    return {
+        "llama_cpp_path": LLAMA_CPP_PATH,
+        "models_path": MODELS_PATH,
+        "build_bin_path": BUILD_BIN_PATH,
+        "log_dir": LOG_DIR
+    }
+
+def get_current_paths() -> Dict[str, str]:
+    """Get current paths"""
+    return {
+        "llama_cpp_path": LLAMA_CPP_PATH,
+        "models_path": MODELS_PATH,
+        "build_bin_path": BUILD_BIN_PATH,
+        "log_dir": LOG_DIR
+    }

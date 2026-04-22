@@ -15,7 +15,7 @@ import logging
 from config import (
     load_config, save_config, get_paths, create_directories,
     DEFAULT_LLAMA_CPP_PATH, CTX_SIZE_OPTIONS, NGL_OPTIONS,
-    LARGE_MODEL_THRESHOLD
+    LARGE_MODEL_THRESHOLD, update_llama_cpp_path, get_current_paths
 )
 
 # Constants (shared with main application)
@@ -494,6 +494,40 @@ class StateManager:
         except Exception as e:
             logger.error(f"Error in clear_process: {e}")
             return False
+
+    def set_llama_cpp_path(self, path: str) -> Dict[str, str]:
+        """Update llama.cpp path"""
+        global LLAMA_CPP_PATH, MODELS_PATH, BUILD_BIN_PATH, LOG_DIR
+        try:
+            with self._state_lock:
+                # Update paths
+                paths = update_llama_cpp_path(path)
+                # Update global variables
+                LLAMA_CPP_PATH = paths["llama_cpp_path"]
+                MODELS_PATH = paths["models_path"]
+                BUILD_BIN_PATH = paths["build_bin_path"]
+                LOG_DIR = paths["log_dir"]
+                # Update state
+                self._state.llama_cpp_path = LLAMA_CPP_PATH
+                # Create necessary directories
+                create_directories(paths)
+                # Rescan models with new path
+                models = scan_models()
+                self.set_models(models)
+                # Save configuration
+                self._save_config()
+                # Notify watchers
+                self._notify_watchers()
+                logger.info(f"Updated llama.cpp path to: {LLAMA_CPP_PATH}")
+                return paths
+        except Exception as e:
+            logger.error(f"Error in set_llama_cpp_path: {e}")
+            # Return current paths on error
+            return get_current_paths()
+
+    def get_paths(self) -> Dict[str, str]:
+        """Get current paths"""
+        return get_current_paths()
 
 
 def get_state_manager() -> StateManager:

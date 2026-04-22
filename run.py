@@ -391,8 +391,7 @@ def main():
             elif key in ('l', 'L'):
                 # Set llama.cpp path
                 print_header()
-                print(f"  {C_orange}{C_BOLD}▸ LLAMA.CPP PATH CONFIGURATION{C_RESET}
-")
+                print(f"  {C_orange}{C_BOLD}▸ LLAMA.CPP PATH CONFIGURATION{C_RESET}\n")
                 print(f"  {C_cyan}Current path: {C_RESET}{LLAMA_CPP_PATH}")
                 path_input = get_input("Enter new llama.cpp path (press Enter to keep current):")
                 if path_input:
@@ -411,7 +410,7 @@ def main():
                         print(f"\n  {C_red}✗ Error updating path: {e}{C_RESET}")
                     time.sleep(1)
                 else:
-                    print("  {C_yellow}Path unchanged.{C_RESET}")
+                    print(f"  {C_yellow}Path unchanged.{C_RESET}")
                     time.sleep(0.5)
             elif key in ('\r', '\n'):
                 if models and 0 <= selected_idx < len(models):

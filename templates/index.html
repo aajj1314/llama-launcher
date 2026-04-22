@@ -3,13 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#0d1117">
     <title>Llama Launcher - WebUI</title>
-    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js" defer></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        }
+        
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: var(--accent-cyan);
+            color: #000;
+            padding: 8px 16px;
+            border-radius: 0 0 8px 8px;
+            text-decoration: none;
+            z-index: 1000;
+            transition: top 0.3s ease;
+        }
+        
+        .skip-link:focus {
+            top: 0;
         }
         
         :root {
@@ -26,6 +46,10 @@
             --accent-purple: #a371f7;
             --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        html {
+            color-scheme: dark;
         }
         
         body {
@@ -310,10 +334,16 @@
         }
         
         select:focus, input:focus {
-            outline: none;
+            outline: 2px solid var(--accent-cyan);
             border-color: var(--accent-cyan);
             box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
             transform: translateY(-1px);
+        }
+        
+        .btn:focus-visible,
+        .model-item:focus-visible {
+            outline: 2px solid var(--accent-cyan);
+            outline-offset: 2px;
         }
         
         .btn {
@@ -540,6 +570,18 @@
             100% { transform: translateX(100%); }
         }
         
+        /* Add prefers-reduced-motion support */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+        
         .progress-fill.warning {
             background: var(--accent-orange);
         }
@@ -560,6 +602,12 @@
         .ctx-display label {
             margin-bottom: 12px;
             font-weight: 500;
+        }
+        
+        @media (max-width: 1024px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
         }
         
         @media (max-width: 768px) {
@@ -585,24 +633,49 @@
                 grid-template-columns: 1fr;
             }
         }
+        
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .card {
+                padding: 16px;
+            }
+            
+            .model-item {
+                padding: 12px 16px;
+            }
+        }
+        
+        /* Add safe area support for mobile devices */
+        @supports (padding: max(0px)) {
+            .container {
+                padding-left: max(20px, env(safe-area-inset-left));
+                padding-right: max(20px, env(safe-area-inset-right));
+                padding-top: max(20px, env(safe-area-inset-top));
+                padding-bottom: max(20px, env(safe-area-inset-bottom));
+            }
+        }
     </style>
 </head>
 <body>
     <div id="app" class="container">
+        <a href="#main-content" class="skip-link">Skip to main content</a>
         <header>
             <h1>🤖 Llama Launcher</h1>
-            <div class="status-badge">
+            <nav class="status-badge">
                 <span class="status-dot" :class="{ offline: !tuiOnline }"></span>
                 <span>TUI {{ tuiOnline ? 'Online' : 'Offline' }}</span>
-            </div>
+            </nav>
         </header>
         
-        <div class="grid">
+        <div class="grid" id="main-content">
             <!-- Model Selection -->
             <div class="card">
                 <div class="card-title">
                     Models 
-                    <button class="refresh-btn" @click="refreshModels">⟳ Refresh</button>
+                    <button class="refresh-btn" @click="refreshModels" aria-label="Refresh models">⟳ Refresh</button>
                 </div>
                 <div class="model-list" v-if="models.length > 0">
                     <div 
@@ -611,6 +684,9 @@
                         :key="model.name"
                         :class="{ selected: selectedModel === model.name }"
                         @click="selectModel(model.name)"
+                        @keydown.enter="selectModel(model.name)"
+                        @keydown.space="selectModel(model.name)"
+                        tabindex="0"
                     >
                         <span class="model-name">{{ model.name }}</span>
                         <span class="model-size">{{ model.size_formatted }}</span>
@@ -627,8 +703,8 @@
                 <div class="card-title">Configuration</div>
                 
                 <div class="form-group">
-                    <label>Running Mode</label>
-                    <select v-model="config.mode" :disabled="isRunning">
+                    <label for="mode-select">Running Mode</label>
+                    <select id="mode-select" v-model="config.mode" :disabled="isRunning">
                         <option value="0">CLI - Interactive</option>
                         <option value="1">Server - API Server</option>
                         <option value="2">Embedding - Vector Mode</option>
@@ -636,8 +712,8 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>Context Size</label>
-                    <select v-model="config.ctxIdx" :disabled="isRunning">
+                    <label for="ctx-select">Context Size</label>
+                    <select id="ctx-select" v-model="config.ctxIdx" :disabled="isRunning">
                         <option v-for="opt in ctxOptions" :key="opt.idx" :value="opt.idx">
                             {{ opt.label }}
                         </option>
@@ -645,8 +721,8 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>GPU Layers (NGL)</label>
-                    <select v-model="config.nglIdx" :disabled="isRunning">
+                    <label for="ngl-select">GPU Layers (NGL)</label>
+                    <select id="ngl-select" v-model="config.nglIdx" :disabled="isRunning">
                         <option v-for="opt in nglOptions" :key="opt.idx" :value="opt.idx">
                             {{ opt.value }}
                         </option>
@@ -654,23 +730,23 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>Port (Server mode)</label>
-                    <input type="number" v-model.number="config.port" min="1" max="65535" :disabled="isRunning">
+                    <label for="port-input">Port (Server mode)</label>
+                    <input id="port-input" type="number" v-model.number="config.port" min="1" max="65535" :disabled="isRunning" inputmode="numeric" autocomplete="off">
                 </div>
                 
                 <div class="form-group">
-                    <label>llama.cpp Path</label>
-                    <input type="text" v-model="config.llamaCppPath" :disabled="isRunning" placeholder="/path/to/llama.cpp">
+                    <label for="path-input">llama.cpp Path</label>
+                    <input id="path-input" type="text" v-model="config.llamaCppPath" :disabled="isRunning" placeholder="/path/to/llama.cpp" autocomplete="off">
                 </div>
                 
                 <div class="form-group">
-                    <label>Timeout (seconds)</label>
-                    <input type="number" v-model.number="config.timeout" min="1" max="300" :disabled="isRunning">
+                    <label for="timeout-input">Timeout (seconds)</label>
+                    <input id="timeout-input" type="number" v-model.number="config.timeout" min="1" max="300" :disabled="isRunning" inputmode="numeric">
                 </div>
                 
                 <div class="form-group">
-                    <label>Log Level</label>
-                    <select v-model="config.logLevel" :disabled="isRunning">
+                    <label for="log-level-select">Log Level</label>
+                    <select id="log-level-select" v-model="config.logLevel" :disabled="isRunning">
                         <option value="DEBUG">Debug</option>
                         <option value="INFO">Info</option>
                         <option value="WARNING">Warning</option>
@@ -679,16 +755,18 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>GPU Memory Limit (MB)</label>
-                    <input type="number" v-model.number="config.gpuMemory" min="0" :disabled="isRunning" placeholder="0 = no limit">
+                    <label for="gpu-memory-input">GPU Memory Limit (MB)</label>
+                    <input id="gpu-memory-input" type="number" v-model.number="config.gpuMemory" min="0" :disabled="isRunning" placeholder="0 = no limit" inputmode="numeric">
                 </div>
                 
                 <div class="btn-group">
-                    <button class="btn btn-primary" @click="startModel" :disabled="isRunning || !selectedModel">
-                        ▶ Start
+                    <button class="btn btn-primary" @click="startModel" :disabled="isRunning || !selectedModel || isStarting">
+                        <span v-if="isStarting">Starting...</span>
+                        <span v-else>▶ Start</span>
                     </button>
-                    <button class="btn btn-danger" @click="stopModel" :disabled="!isRunning">
-                        ■ Stop
+                    <button class="btn btn-danger" @click="stopModel" :disabled="!isRunning || isStopping">
+                        <span v-if="isStopping">Stopping...</span>
+                        <span v-else>■ Stop</span>
                     </button>
                     <button class="btn btn-secondary" @click="saveConfig">
                         💾 Save Config
@@ -750,6 +828,8 @@
                 const models = ref([]);
                 const selectedModel = ref('');
                 const isRunning = ref(false);
+                const isStarting = ref(false);
+                const isStopping = ref(false);
                 const processPid = ref(null);
                 const currentModel = ref('');
                 const tuiOnline = ref(true);
@@ -858,6 +938,7 @@
                     if (!selectedModel.value) return;
                     
                     try {
+                        isStarting.value = true;
                         const res = await fetch('/api/start', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -869,21 +950,32 @@
                         const data = await res.json();
                         if (data.success) {
                             await fetchState();
+                        } else {
+                            alert('Failed to start model: ' + data.error);
                         }
                     } catch (e) {
                         console.error('Failed to start model:', e);
+                        alert('Failed to start model: ' + e.message);
+                    } finally {
+                        isStarting.value = false;
                     }
                 };
                 
                 const stopModel = async () => {
                     try {
+                        isStopping.value = true;
                         const res = await fetch('/api/stop', { method: 'POST' });
                         const data = await res.json();
                         if (data.success) {
                             await fetchState();
+                        } else {
+                            alert('Failed to stop model: ' + data.error);
                         }
                     } catch (e) {
                         console.error('Failed to stop model:', e);
+                        alert('Failed to stop model: ' + e.message);
+                    } finally {
+                        isStopping.value = false;
                     }
                 };
                 
@@ -937,6 +1029,8 @@
                     models,
                     selectedModel,
                     isRunning,
+                    isStarting,
+                    isStopping,
                     processPid,
                     currentModel,
                     tuiOnline,

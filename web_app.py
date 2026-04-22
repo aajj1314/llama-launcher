@@ -18,9 +18,8 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-# ============== Server Configuration ==============
-WEB_HOST = "0.0.0.0"
-WEB_PORT = 80  # 默认端口
+# Import configuration
+from config import WEB_HOST, WEB_PORT
 
 # Create FastAPI app
 app = FastAPI(
@@ -115,6 +114,7 @@ def run_cli(model_path: str, ctx_size: int, ngl: int) -> subprocess.Popen:
         "-c", str(ctx_size),
         "--color", "on"
     ]
+    # WebUI中CLI模式无法交互，使用DEVNULL
     return subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
@@ -217,9 +217,24 @@ async def get_models():
 async def update_config(request: Request):
     """Update configuration"""
     data = await request.json()
+    
+    # Validate ctx_idx
     ctx_idx = data.get("ctx_idx")
+    if ctx_idx is not None:
+        if not isinstance(ctx_idx, int) or ctx_idx < 0 or ctx_idx >= len(CTX_SIZE_OPTIONS):
+            raise HTTPException(status_code=400, detail="Invalid ctx_idx")
+    
+    # Validate ngl_idx
     ngl_idx = data.get("ngl_idx")
+    if ngl_idx is not None:
+        if not isinstance(ngl_idx, int) or ngl_idx < 0 or ngl_idx >= len(NGL_OPTIONS):
+            raise HTTPException(status_code=400, detail="Invalid ngl_idx")
+    
+    # Validate port
     port = data.get("port")
+    if port is not None:
+        if not isinstance(port, int) or port < 1 or port > 65535:
+            raise HTTPException(status_code=400, detail="Invalid port number")
     
     state_mgr.set_config(ctx_idx=ctx_idx, ngl_idx=ngl_idx, port=port)
     return JSONResponse(content={"success": True, "state": state_mgr.get_state()})
@@ -229,8 +244,16 @@ async def update_config(request: Request):
 async def start_model(request: Request):
     """Start a model"""
     data = await request.json()
+    
+    # Validate model_name
     model_name = data.get("model_name")
+    if not model_name or not isinstance(model_name, str):
+        raise HTTPException(status_code=400, detail="Invalid model_name")
+    
+    # Validate mode
     mode = data.get("mode", 1)
+    if not isinstance(mode, int) or mode < 0 or mode > 2:
+        raise HTTPException(status_code=400, detail="Invalid mode")
     
     # Find model in list
     models = scan_models()
@@ -251,13 +274,16 @@ async def start_model(request: Request):
     try:
         proc = None
         log_file = ""
+        message = f"Model '{model_name}' started"
         
         if mode == 0:  # CLI
             proc = run_cli(model["path"], ctx_size, ngl)
+            message += " (CLI mode: no interactive terminal in WebUI)"
         elif mode == 1:  # Server
             proc, log_file = run_server(model["path"], ctx_size, ngl, port)
         elif mode == 2:  # Embedding
             proc = run_embedding(model["path"], ngl)
+            message += " (Embedding mode: no interactive terminal in WebUI)"
         
         pid = proc.pid if proc else None
         state_mgr.set_process(
@@ -272,7 +298,7 @@ async def start_model(request: Request):
         
         return JSONResponse(content={
             "success": True,
-            "message": f"Model '{model_name}' started",
+            "message": message,
             "pid": pid
         })
     except Exception as e:

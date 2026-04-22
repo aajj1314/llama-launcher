@@ -13,6 +13,9 @@ import time
 # Add current directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Import configuration
+from config import WEB_HOST, WEB_PORT
+
 def start_webui_thread():
     """Start WebUI in a background thread"""
     import web_app
@@ -37,7 +40,7 @@ def main():
         "--web-port", "-p",
         type=int,
         default=8087,
-        help="Web server port (default: 80...)"
+        help="Web server port (default: 8087)"
     )
     parser.add_argument(
         "--web-host",

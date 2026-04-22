@@ -11,8 +11,17 @@ import time
 import signal
 import re
 import threading
+import logging
 from typing import Optional, List, Dict, Any, Tuple
 from dataclasses import dataclass
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename=os.path.join(os.path.dirname(__file__), 'launcher.log')
+)
+logger = logging.getLogger(__name__)
 
 # Import shared state manager
 from state_manager import (
@@ -246,205 +255,236 @@ def main():
     running = True
     selected_idx = 0
     last_update_time = 0
+    last_render_time = 0
     
-    # Sync initial state from state manager
-    models = scan_large_models()
-    state = state_mgr.state
-    run_mode = state.current_mode
-    ctx_idx = state.ctx_idx
-    ngl_idx = state.ngl_idx
-    port = state.port
-    
-    # Sync models to state manager (only once at start)
-    all_models = scan_models(MODELS_PATH)
-    state_mgr.set_models(all_models)
-    
-    print_header()
-    print(f"  {C_green}✓ Initializing Llama.cpp Launcher v3.1 (Cyberpunk Edition)...{C_RESET}")
-    print(f"  {C_green}✓ Found {len(models)} large models{C_RESET}")
-    print(f"  {C_green}✓ State Manager connected{C_RESET}")
-    time.sleep(0.5)
-
-    while running:
-        # Get state from state manager
+    try:
+        # Sync initial state from state manager
+        models = scan_large_models()
         state = state_mgr.state
-        
-        # Get process state from state manager
-        current_process = state.process_obj
-        current_log_file = state.log_file
         run_mode = state.current_mode
         ctx_idx = state.ctx_idx
         ngl_idx = state.ngl_idx
         port = state.port
         
-        # Get server stats from state manager
-        server_stats = state.server_stats
-        
-        # Update stats from log file for server mode
-        current_time = time.time()
-        if current_process and current_process.poll() is None and current_log_file:
-            if current_time - last_update_time > 0.5:
-                parsed_stats = parse_server_log(current_log_file)
-                if parsed_stats.is_valid():
-                    server_stats = parsed_stats
-                    state_mgr.update_stats(server_stats)
-                last_update_time = current_time
-        
-        # Re-scan models only if list is empty (avoid repeated scanning)
-        if not state.models:
-            all_models = scan_models(MODELS_PATH)
-            state_mgr.set_models(all_models)
-        
-        models = [m for m in state.models if m.get("size", 0) > LARGE_MODEL_THRESHOLD]
-        
-        # Adjust selection if needed
-        if selected_idx >= len(models) and models:
-            selected_idx = len(models) - 1
+        # Sync models to state manager (only once at start)
+        all_models = scan_models(MODELS_PATH)
+        state_mgr.set_models(all_models)
         
         print_header()
-        print_models(models, selected_idx)
-        print_settings(run_mode, ctx_idx, ngl_idx, port)
-        print_stats(server_stats, current_process, port)
-        print_controls()
-        print_footer()
-        print(f"\n\033[1;38;5;51m> \033[0m", end="", flush=True)
+        print(f"  {C_green}✓ Initializing Llama.cpp Launcher v3.0 (Cyberpunk Edition)...{C_RESET}")
+        print(f"  {C_green}✓ Found {len(models)} large models{C_RESET}")
+        print(f"  {C_green}✓ State Manager connected{C_RESET}")
+        time.sleep(0.5)
         
-        # Check if process is still running
-        if current_process and current_process.poll() is not None:
-            state_mgr.clear_process()
-            current_process = None
-            current_log_file = ""
-        
-        try:
-            key = get_key()
-        except:
-            key = 'q'
-        
-        # Configuration change handlers - sync to state manager
-        if key in ('UP', 'w', 'W', '4'):
-            if selected_idx > 0:
-                selected_idx -= 1
-        elif key in ('DOWN', 's', 'S', '5'):
-            if selected_idx < len(models) - 1:
-                selected_idx += 1
-        elif key == '1':
-            state_mgr.set_run_mode(0)
-        elif key == '2':
-            state_mgr.set_run_mode(1)
-        elif key == '3':
-            state_mgr.set_run_mode(2)
-        elif key in ('c', 'C'):
-            new_ctx = (ctx_idx + 1) % len(CTX_SIZE_OPTIONS)
-            state_mgr.set_config(ctx_idx=new_ctx)
-        elif key in ('g', 'G'):
-            new_ngl = (ngl_idx + 1) % len(NGL_OPTIONS)
-            state_mgr.set_config(ngl_idx=new_ngl)
-        elif key in ('p', 'P'):
-            print_header()
-            print_models(models, selected_idx)
-            print_settings(run_mode, ctx_idx, ngl_idx, port)
-            print_stats(server_stats, current_process, port)
-            print_controls()
-            print_footer()
-            port_input = get_input("Enter port number (1-65535):")
-            if port_input:
+        logger.info(f"Llama Launcher started, found {len(models)} models")
+
+        while running:
+            try:
+                # Get state from state manager
+                state = state_mgr.state
+            
+                # Get process state from state manager
+                current_process = state.process_obj
+                current_log_file = state.log_file
+                run_mode = state.current_mode
+                ctx_idx = state.ctx_idx
+                ngl_idx = state.ngl_idx
+                port = state.port
+            
+                # Get server stats from state manager
+                server_stats = state.server_stats
+            
+                # Update stats from log file for server mode
+                current_time = time.time()
+                if current_process and current_process.poll() is None and current_log_file:
+                    if current_time - last_update_time > 0.5:
+                        try:
+                            parsed_stats = parse_server_log(current_log_file)
+                            if parsed_stats.is_valid():
+                                server_stats = parsed_stats
+                                state_mgr.update_stats(server_stats)
+                            last_update_time = current_time
+                        except Exception as e:
+                            logger.error(f"Error parsing server log: {e}")
+            
+                # Re-scan models only if list is empty (avoid repeated scanning)
+                if not state.models:
+                    try:
+                        all_models = scan_models(MODELS_PATH)
+                        state_mgr.set_models(all_models)
+                    except Exception as e:
+                        logger.error(f"Error scanning models: {e}")
+            
+                models = [m for m in state.models if m.get("size", 0) > LARGE_MODEL_THRESHOLD]
+            
+                # Adjust selection if needed
+                if selected_idx >= len(models) and models:
+                    selected_idx = len(models) - 1
+            
+                # Control rendering frequency to reduce screen闪烁
+                if current_time - last_render_time > 0.1 or not current_process:  # 增加渲染频率当没有进程运行时
+                    print_header()
+                    print_models(models, selected_idx)
+                    print_settings(run_mode, ctx_idx, ngl_idx, port)
+                    print_stats(server_stats, current_process, port)
+                    print_controls()
+                    print_footer()
+                    print(f"\n\033[1;38;5;51m> \033[0m", end="", flush=True)
+                    last_render_time = current_time
+                else:
+                    # 当有进程运行时，只更新光标位置
+                    print(f"\r\033[1;38;5;51m> \033[0m", end="", flush=True)
+            
+                # Check if process is still running
+                if current_process and current_process.poll() is not None:
+                    state_mgr.clear_process()
+                    current_process = None
+                    current_log_file = ""
+            
                 try:
-                    new_port = int(port_input)
-                    if 1 <= new_port <= 65535:
-                        state_mgr.set_config(port=new_port)
-                    else:
-                        print(f"\n  {C_red}✗ Port must be between 1 and 65535{C_RESET}")
+                    key = get_key()
+                except Exception as e:
+                    logger.error(f"Error getting key: {e}")
+                    key = 'q'
+            
+                # Configuration change handlers - sync to state manager
+                if key in ('UP', 'w', 'W', '4'):
+                    if selected_idx > 0:
+                        selected_idx -= 1
+                elif key in ('DOWN', 's', 'S', '5'):
+                    if selected_idx < len(models) - 1:
+                        selected_idx += 1
+                elif key == '1':
+                    state_mgr.set_run_mode(0)
+                elif key == '2':
+                    state_mgr.set_run_mode(1)
+                elif key == '3':
+                    state_mgr.set_run_mode(2)
+                elif key in ('c', 'C'):
+                    new_ctx = (ctx_idx + 1) % len(CTX_SIZE_OPTIONS)
+                    state_mgr.set_config(ctx_idx=new_ctx)
+                elif key in ('g', 'G'):
+                    new_ngl = (ngl_idx + 1) % len(NGL_OPTIONS)
+                    state_mgr.set_config(ngl_idx=new_ngl)
+                elif key in ('p', 'P'):
+                    print_header()
+                    print_models(models, selected_idx)
+                    print_settings(run_mode, ctx_idx, ngl_idx, port)
+                    print_stats(server_stats, current_process, port)
+                    print_controls()
+                    print_footer()
+                    port_input = get_input("Enter port number (1-65535):")
+                    if port_input:
+                        try:
+                            new_port = int(port_input)
+                            if 1 <= new_port <= 65535:
+                                state_mgr.set_config(port=new_port)
+                            else:
+                                print(f"\n  {C_red}✗ Port must be between 1 and 65535{C_RESET}")
+                                time.sleep(1)
+                        except ValueError:
+                            print(f"\n  {C_red}✗ Invalid port number: {port_input}{C_RESET}")
+                            time.sleep(1)
+                elif key in ('r', 'R'):
+                    try:
+                        all_models = scan_models(MODELS_PATH)
+                        state_mgr.set_models(all_models)
+                        print(f"\n  {C_green}✓ Models refreshed{C_RESET}")
+                        time.sleep(0.3)
+                    except Exception as e:
+                        logger.error(f"Error refreshing models: {e}")
+                        print(f"\n  {C_red}✗ Error refreshing models{C_RESET}")
                         time.sleep(1)
-                except ValueError:
-                    print(f"\n  {C_red}✗ Invalid port number: {port_input}{C_RESET}")
-                    time.sleep(1)
-        elif key in ('r', 'R'):
-            all_models = scan_models(MODELS_PATH)
-            state_mgr.set_models(all_models)
-            print(f"\n  {C_green}✓ Models refreshed{C_RESET}")
-            time.sleep(0.3)
-        elif key in ('k', 'K'):
+                elif key in ('k', 'K'):
+                    if state.is_running:
+                        proc = state.process_obj
+                        if proc:
+                            terminate_process(proc)
+                        state_mgr.clear_process()
+                elif key in ('\r', '\n'):
+                    if models and 0 <= selected_idx < len(models):
+                        model = models[selected_idx]
+                        
+                        # Stop any running process first
+                        if state.is_running:
+                            proc = state.process_obj
+                            if proc:
+                                terminate_process(proc)
+                            state_mgr.clear_process()
+                        
+                        # Start new process
+                        ctx_size = CTX_SIZE_OPTIONS[ctx_idx]
+                        ngl = NGL_OPTIONS[ngl_idx]
+                        
+                        try:
+                            if run_mode == 0:  # CLI
+                                proc = run_cli(model["path"], ctx_size, ngl)
+                                state_mgr.set_process(
+                                    is_running=True,
+                                    pid=proc.pid,
+                                    process_obj=proc,
+                                    model_name=model["name"],
+                                    model_path=model["path"],
+                                    mode=run_mode,
+                                    log_file=""
+                                )
+                                logger.info(f"Started CLI mode with model: {model['name']}")
+                            elif run_mode == 1:  # Server
+                                proc, log_file = run_server(model["path"], ctx_size, ngl, port)
+                                state_mgr.set_process(
+                                    is_running=True,
+                                    pid=proc.pid,
+                                    process_obj=proc,
+                                    model_name=model["name"],
+                                    model_path=model["path"],
+                                    mode=run_mode,
+                                    log_file=log_file
+                                )
+                                logger.info(f"Started Server mode with model: {model['name']} on port {port}")
+                            elif run_mode == 2:  # Embedding
+                                proc = run_embedding(model["path"], ngl)
+                                state_mgr.set_process(
+                                    is_running=True,
+                                    pid=proc.pid,
+                                    process_obj=proc,
+                                    model_name=model["name"],
+                                    model_path=model["path"],
+                                    mode=run_mode,
+                                    log_file=""
+                                )
+                                logger.info(f"Started Embedding mode with model: {model['name']}")
+                        except Exception as e:
+                            logger.error(f"Error starting model: {e}")
+                            print(f"\n  {C_red}✗ Error starting model{C_RESET}")
+                            time.sleep(1)
+                elif key in ('q', 'Q'):
+                    running = False
+            except Exception as e:
+                logger.error(f"Error in main loop: {e}")
+                time.sleep(1)
+    except Exception as e:
+        logger.error(f"Error initializing launcher: {e}")
+        print(f"\n  {C_red}✗ Error initializing launcher{C_RESET}")
+        time.sleep(2)
+    finally:
+        # Cleanup: stop any running process
+        try:
+            state = state_mgr.state
             if state.is_running:
                 proc = state.process_obj
                 if proc:
-                    try:
-                        proc.terminate()
-                        proc.wait(timeout=5)
-                    except:
-                        proc.kill()
+                    terminate_process(proc)
                 state_mgr.clear_process()
-        elif key in ('\r', '\n'):
-            if models and 0 <= selected_idx < len(models):
-                model = models[selected_idx]
-                
-                # Stop any running process first
-                if state.is_running:
-                    proc = state.process_obj
-                    if proc:
-                        try:
-                            proc.terminate()
-                            proc.wait(timeout=5)
-                        except:
-                            proc.kill()
-                    state_mgr.clear_process()
-                
-                # Start new process
-                ctx_size = CTX_SIZE_OPTIONS[ctx_idx]
-                ngl = NGL_OPTIONS[ngl_idx]
-                
-                if run_mode == 0:  # CLI
-                    proc = run_cli(model["path"], ctx_size, ngl)
-                    state_mgr.set_process(
-                        is_running=True,
-                        pid=proc.pid,
-                        process_obj=proc,
-                        model_name=model["name"],
-                        model_path=model["path"],
-                        mode=run_mode,
-                        log_file=""
-                    )
-                elif run_mode == 1:  # Server
-                    proc, log_file = run_server(model["path"], ctx_size, ngl, port)
-                    state_mgr.set_process(
-                        is_running=True,
-                        pid=proc.pid,
-                        process_obj=proc,
-                        model_name=model["name"],
-                        model_path=model["path"],
-                        mode=run_mode,
-                        log_file=log_file
-                    )
-                elif run_mode == 2:  # Embedding
-                    proc = run_embedding(model["path"], ngl)
-                    state_mgr.set_process(
-                        is_running=True,
-                        pid=proc.pid,
-                        process_obj=proc,
-                        model_name=model["name"],
-                        model_path=model["path"],
-                        mode=run_mode,
-                        log_file=""
-                    )
-        elif key in ('q', 'Q'):
-            running = False
-    
-    # Cleanup: stop any running process
-    state = state_mgr.state
-    if state.is_running:
-        proc = state.process_obj
-        if proc:
-            try:
-                proc.terminate()
-                proc.wait(timeout=5)
-            except:
-                proc.kill()
-        state_mgr.clear_process()
-    
-    clear_screen()
-    print(f"\n  {C_green}✓ Goodbye!{C_RESET}\n")
+            
+            clear_screen()
+            print(f"\n  {C_green}✓ Goodbye!{C_RESET}\n")
+            logger.info("Llama Launcher stopped")
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
+        logger.info("Keyboard interrupt received")
         pass

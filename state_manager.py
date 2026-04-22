@@ -10,6 +10,13 @@ from typing import Optional, List, Dict, Any, Callable
 from dataclasses import dataclass, field
 import logging
 
+# Import configuration
+from config import (
+    LLAMA_CPP_PATH, WEB_HOST, WEB_PORT, DEFAULT_MODE,
+    DEFAULT_CTX_IDX, DEFAULT_NGL_IDX, DEFAULT_PORT,
+    LARGE_MODEL_THRESHOLD, LOG_DIR
+)
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -60,12 +67,12 @@ class AppState:
     # Model info
     current_model_name: str = ""
     current_model_path: str = ""
-    current_mode: int = 0  # 0: CLI, 1: Server, 2: Embedding
+    current_mode: int = DEFAULT_MODE  # 0: CLI, 1: Server, 2: Embedding
     
     # Configuration
-    ctx_idx: int = 0
-    ngl_idx: int = 4
-    port: int = 80
+    ctx_idx: int = DEFAULT_CTX_IDX
+    ngl_idx: int = DEFAULT_NGL_IDX
+    port: int = DEFAULT_PORT
     
     # Models
     models: List[Dict[str, Any]] = field(default_factory=list)
@@ -88,9 +95,9 @@ class AppState:
             "current_mode": self.current_mode,
             "current_mode_name": ["CLI", "Server", "Embedding"][self.current_mode] if 0 <= self.current_mode <= 2 else "Unknown",
             "ctx_idx": self.ctx_idx,
-            "ctx_size": 4096 * (2 ** self.ctx_idx) if self.ctx_idx < 6 else 131072,
+            "ctx_size": CTX_SIZE_OPTIONS[self.ctx_idx] if 0 <= self.ctx_idx < len(CTX_SIZE_OPTIONS) else CTX_SIZE_OPTIONS[0],
             "ngl_idx": self.ngl_idx,
-            "ngl": [0, 33, 66, 99, 999][self.ngl_idx],
+            "ngl": NGL_OPTIONS[self.ngl_idx] if 0 <= self.ngl_idx < len(NGL_OPTIONS) else NGL_OPTIONS[0],
             "port": self.port,
             "models": self.models,
             "server_stats": self.server_stats.to_dict(),
@@ -227,14 +234,11 @@ def get_state_manager() -> StateManager:
 
 
 # Constants (shared with main application)
-LLAMA_CPP_PATH = os.environ.get("LLAMA_CPP_PATH", "/home/anan/llama.cpp")
 MODELS_PATH = os.path.join(LLAMA_CPP_PATH, "models")
 BUILD_BIN_PATH = os.path.join(LLAMA_CPP_PATH, "build", "bin")
-LOG_DIR = os.path.join(LLAMA_CPP_PATH, "logs")
 
 CTX_SIZE_OPTIONS = [4096, 8192, 16384, 32768, 65536, 131072]
 NGL_OPTIONS = [0, 33, 66, 99, 999]
-LARGE_MODEL_THRESHOLD = 1024 * 1024 * 1024  # 1GB
 
 
 def format_size(size: int) -> str:

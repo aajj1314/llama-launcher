@@ -20,7 +20,7 @@ from process_manager import run_cli, run_server, run_embedding
 from state_manager import (
     get_state_manager, ServerStats,
     scan_models, CTX_SIZE_OPTIONS, NGL_OPTIONS,
-    LLAMA_CPP_PATH, LOG_DIR,
+    LLAMA_CPP_PATH, MODELS_PATH, LOG_DIR,
     LARGE_MODEL_THRESHOLD, format_size, format_ctx
 )
 
@@ -56,9 +56,6 @@ if not logger.handlers:
 
 # Get singleton state manager
 state_mgr = get_state_manager()
-
-# Use shared constants from state_manager
-MODELS_PATH = os.path.join(LLAMA_CPP_PATH, "models")
 
 def format_speed(speed: float) -> str:
     if speed >= 1000:

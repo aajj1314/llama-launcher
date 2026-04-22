@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 def start_webui_thread():
     """Start WebUI in a background thread"""
     import web_app
-    web_app.start_web_server()
+    web_app.start_web_server(host=web_app.WEB_HOST, port=web_app.WEB_PORT)
 
 def start_tui():
     """Start TUI in the main thread"""
